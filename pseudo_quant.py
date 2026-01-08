@@ -183,6 +183,27 @@ def dequantize_to_dtype(
 
 
 def nvfp4_pseudo_quantize(x: torch.Tensor) -> torch.Tensor:
+    """
+    NVIDIA FP4 pseudo-quantization that converts float/float16/bfloat16 to NVFP4 and back to float32.
+    This function uses block-wise scaling with swizzled scale factors for optimal performance.
+
+    The quantization process includes:
+    1. Block-wise scaling (block size = 16) to preserve precision
+    2. Global scaling to fit within FP4 range
+    3. Swizzled scale factor layout for efficient memory access
+    4. FP4 quantization using E2M1 format
+    5. Dequantization back to float32
+
+    Args:
+        x: Input tensor with dtype float, float16, or bfloat16. Must be a CUDA tensor
+           with last dimension divisible by 16.
+
+    Returns:
+        torch.Tensor: Dequantized tensor with float32 dtype, same shape as input.
+                     The tensor undergoes NVFP4 quantization with block-wise scaling
+                     and is then dequantized back to float32, providing a realistic
+                     simulation of NVFP4 precision loss and scaling effects.
+    """
     fp4_weight, weight_scale_interleaved, weight_global_scale = (
         quantize_linear_weight_to_nvfp4(x)
     )

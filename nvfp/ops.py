@@ -95,3 +95,9 @@ def cutlass_scaled_fp4_mm(
     out = torch.empty((m, n), dtype=out_dtype, device=a.device)
     scaled_fp4_ops.cutlass_scaled_fp4_mm(out, a, b, block_scale_a, block_scale_b, alpha)
     return out
+
+def reciprocal_approximate_ftz_tensor(x: torch.Tensor):
+    y = torch.zeros_like(x)
+    assert x.dtype == torch.float
+    scaled_fp4_ops.reciprocal_approximate_ftz_tensor(x, y)
+    return y

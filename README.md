@@ -29,3 +29,5 @@ Here's the speed test result on RTX 5090. The settings can be seen in `speed_tes
 | 2048       | 0.215     | 0.078    | 2.77                | 159.68       | 159.68     |
 | 4096       | 0.773     | 0.164    | 4.71                | 177.83       | 177.83     |
 | 8192       | 2.440     | 0.562    | 4.34                | 225.27       | 225.27     |
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/SubSir/nvfp_kernel)
