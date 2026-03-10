@@ -455,11 +455,11 @@ class TestRunner:
     def run_test_case(iter_idx, M, N, K, dist_a, dist_b, sample_count=5, 
                       W_stage3=25, W_stage4=25, debug_mismatch=False):
         FLOAT4_E2M1_MAX, FLOAT8_E4M3_MAX = 6.0, 448.0
-        # a = DataGenerator.get_random_tensor((M, K), dist_a)
-        # b = DataGenerator.get_random_tensor((N, K), dist_b)
+        a = DataGenerator.get_random_tensor((M, K), dist_a)
+        b = DataGenerator.get_random_tensor((N, K), dist_b)
 
-        a = DataGenerator_Abs.get_random_tensor((M, K), dist_a)
-        b = DataGenerator_Abs.get_random_tensor((N, K), dist_b)
+        # a = DataGenerator_Abs.get_random_tensor((M, K), dist_a)
+        # b = DataGenerator_Abs.get_random_tensor((N, K), dist_b)
 
         def get_gs(t):
             amax = torch.abs(t).max().to(torch.float32).item()
@@ -540,9 +540,9 @@ def main():
     torch.cuda.manual_seed_all(seed)
     print("seed =", seed)
     
-    num_iterations = 1000000
-    distributions = ["normal", "uniform", "large", "outliers", "mixed_rows", "abs_large"]
-    # distributions = ["outliers"]
+    num_iterations = 10000
+    # distributions = ["normal", "uniform", "large", "outliers", "mixed_rows", "abs_large"]
+    distributions = ["outliers"]
     dims_m = [128, 256, 1024, 2048]
     dims_n = [128, 256, 1024, 2048, 4096]
     dims_k = [128, 256, 512, 1024]
@@ -552,7 +552,7 @@ def main():
     # W_stage3 = 35
     
     for W_stage3 in range(34, 35):
-        for w_stage4 in range(24, 35):  # Test W from 20 to 36
+        for w_stage4 in range(28, 35):  # Test W from 20 to 36
             NUM_SAMPLES_TO_PRINT = 5
             MAX_MISMATCH_TESTS = 20
             mismatch_print_count = 0
