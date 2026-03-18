@@ -216,7 +216,11 @@ class MMAEngine:
         combined_scales = s_a.unsqueeze(1) * s_b.unsqueeze(0)
         scaled_partials = ps1.float() * combined_scales
 
+<<<<<<< HEAD
         # STEP 3
+=======
+        # STEP 3: Stage 3 with W_stage3
+>>>>>>> 97d46c9e7a98b29122bdb52f2b503c215e8dda92
         num_4_groups = G // 4
         scaled_partials_4grouped = scaled_partials.view(M, N, num_4_groups, 4)
         v_list = [scaled_partials_4grouped[..., i] for i in range(4)]
