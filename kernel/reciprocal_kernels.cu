@@ -16,13 +16,21 @@
 
 #include <ATen/cuda/CUDAContext.h>
 #include <c10/cuda/CUDAGuard.h>
+#include <cuda_bf16.h>
+#include <cuda_fp16.h>
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
 #include <torch/all.h>
 
-#include "cuda_utils.h"
-#include "dispatch_utils.h"
-#include "nvfp4_utils.cuh"
+namespace {
+
+inline __device__ float reciprocal_approximate_ftz(float a) {
+  float b;
+  asm volatile("rcp.approx.ftz.f32 %0, %1;\n" : "=f"(b) : "f"(a));
+  return b;
+}
+
+}  // namespace
 
 namespace vllm {
 
