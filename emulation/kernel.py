@@ -74,8 +74,10 @@ class EmulationKernel:
         Args:
             a: FP4 quantized activation tensor [M, K/2] (uint8 packed)
             b: FP4 quantized weight tensor [N, K/2] (uint8 packed)
-            block_scale_a: Block scales for activation [M, K/16] (float8_e4m3fn)
-            block_scale_b: Block scales for weight [N, K/16] (float8_e4m3fn)
+            block_scale_a: Padded+swizzled block scales for activation
+                [round_up(M, 128), round_up(K/16, 4)] (float8_e4m3fn)
+            block_scale_b: Padded+swizzled block scales for weight
+                [round_up(N, 128), round_up(K/16, 4)] (float8_e4m3fn)
             alpha: Global scale factor [1] (float32)
             out_dtype: Output dtype (float16 or bfloat16)
             
@@ -95,6 +97,8 @@ class EmulationKernel:
     ) -> torch.Tensor:
         """
         Execute emulated NVFP4 GEMM (same as __call__)."""
+        self._validate_inputs(a, b, block_scale_a, block_scale_b, alpha, out_dtype)
+
         # Infer dimensions from input tensors
         M = a.shape[0]
         N = b.shape[0]
@@ -119,6 +123,43 @@ class EmulationKernel:
         
         # Cast to requested output dtype
         return result.to(out_dtype)
+
+    @staticmethod
+    def _round_up(x: int, y: int) -> int:
+        return (x + y - 1) // y * y
+
+    def _validate_inputs(
+        self,
+        a: torch.Tensor,
+        b: torch.Tensor,
+        block_scale_a: torch.Tensor,
+        block_scale_b: torch.Tensor,
+        alpha: torch.Tensor,
+        out_dtype: torch.dtype,
+    ) -> None:
+        # Keep emulation path aligned with ops.cutlass_scaled_fp4_mm contracts.
+        assert a.is_cuda and b.is_cuda, "a and b must be CUDA tensors"
+        assert block_scale_a.is_cuda and block_scale_b.is_cuda, "block scales must be CUDA tensors"
+        assert alpha.is_cuda, "alpha must be a CUDA tensor"
+        assert a.ndim == 2 and b.ndim == 2, "a and b must be 2D tensors"
+        assert a.dtype == torch.uint8 and b.dtype == torch.uint8, "a and b must be uint8 packed FP4"
+        assert out_dtype in (torch.float16, torch.bfloat16), "out_dtype must be fp16 or bf16"
+        assert a.shape[1] == b.shape[1], f"k mismatch: a.shape={a.shape}, b.shape={b.shape}"
+
+        M = a.shape[0]
+        N = b.shape[0]
+        K = a.shape[1] * 2
+        G = K // 16
+        expected_scale_a = (self._round_up(M, 128), self._round_up(G, 4))
+        expected_scale_b = (self._round_up(N, 128), self._round_up(G, 4))
+
+        assert block_scale_a.ndim == 2 and block_scale_b.ndim == 2, "block scales must be 2D tensors"
+        assert block_scale_a.shape == expected_scale_a, (
+            f"scale_a must be padded+swizzled to {expected_scale_a}, got {tuple(block_scale_a.shape)}"
+        )
+        assert block_scale_b.shape == expected_scale_b, (
+            f"scale_b must be padded+swizzled to {expected_scale_b}, got {tuple(block_scale_b.shape)}"
+        )
     
     @classmethod
     def for_rtx_5090(cls) -> "EmulationKernel":
@@ -163,8 +204,10 @@ def emulated_fp4_mm(
     Args:
         a: FP4 quantized activation tensor [M, K/2]
         b: FP4 quantized weight tensor [N, K/2]
-        block_scale_a: Block scales for activation [M, K/16]
-        block_scale_b: Block scales for weight [N, K/16]
+        block_scale_a: Padded+swizzled block scales for activation
+            [round_up(M, 128), round_up(K/16, 4)]
+        block_scale_b: Padded+swizzled block scales for weight
+            [round_up(N, 128), round_up(K/16, 4)]
         alpha: Global scale factor [1]
         out_dtype: Output dtype (default: float16)
         config: Optional HardwareConfig (uses RTX 5090 defaults if None)

@@ -67,7 +67,7 @@ def pytorch_nvfp4_quantize(a, a_global_scale):
 # apply swizzled on block scaling factor:
 # 1. apply padding to [mn_t * 128 , k_t * 4]
 # 2. apply swizzle
-def linear_to_swizzled_128_4(a_sf_linear: torch.Tensor):
+def linear_to_swizzled_128_4(a_sf_linear: torch.Tensor, return_padded: bool = True):
     mn, sf_k = a_sf_linear.shape
     m_tiles = (mn + 128 - 1) // 128
     mn_padded = m_tiles * 128
@@ -83,7 +83,11 @@ def linear_to_swizzled_128_4(a_sf_linear: torch.Tensor):
     # details about layout requirement on block-wise scaling factor
     # https://docs.nvidia.com/cutlass/media/docs/cpp/blackwell_functionality.html#scale-factor-layouts
     tmp = torch.reshape(a_sf_padded, (m_tiles, 4, 32, k_tiles, 4))
-    return tmp.transpose(1, 3).reshape(mn_padded, k_padded)[:mn, :sf_k]
+    a_sf_swizzled = tmp.transpose(1, 3).reshape(mn_padded, k_padded)
+    if return_padded:
+        return a_sf_swizzled
+    # Legacy mode (lossy for non-128x4-aligned shapes). Keep for compatibility.
+    return a_sf_swizzled[:mn, :sf_k]
 
 
 @torch.inference_mode()
@@ -156,6 +160,12 @@ def unpack_fp4_bytes(a):
 # 2. removes padding via slicing to [:mn, :k]
 def swizzled_to_linear_128_4(a_sf_swizzled: torch.Tensor, mn, k):
     mn_padded, sf_k_padded = a_sf_swizzled.shape
+    if (mn_padded % 128) != 0 or (sf_k_padded % 4) != 0:
+        raise ValueError(
+            f"Swizzled scale must be padded to 128x4 tile shape, got {tuple(a_sf_swizzled.shape)}. "
+            "Use ops.scaled_fp4_quant output directly, or "
+            "linear_to_swizzled_128_4(..., return_padded=True)."
+        )
     m_tiles = mn_padded // 128
     k_tiles = sf_k_padded // 4
     tmp = torch.reshape(a_sf_swizzled, (m_tiles, k_tiles, 32, 4, 4))
