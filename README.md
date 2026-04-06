@@ -4,8 +4,18 @@ It's the nvfp kernel extracted from vLLM ([GitHub repository](https://github.com
 ## Setup
 ```bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+
+# Default: build real backend (also keeps emulation path usable in Python)
 python setup.py install
+
+# Explicitly build real backend (same as default)
+NVFP_BUILD_PROFILE=real python setup.py install
+
+# A100 / non-sm1xx: build emulation backend only
+NVFP_BUILD_PROFILE=emulation_only python setup.py install
 ```
+
+`QuantLinear(mode="real")` and `QuantLinear(mode="emulation")` choose path explicitly in Python.
 
 ## Correctness Test
 ```bash

@@ -112,6 +112,14 @@ class EmulationKernel:
         self._validate_inputs(a, b, block_scale_a, block_scale_b, alpha, out_dtype)
 
         # Infer dimensions from input tensors
+        if a.ndim != 2:
+            a = a.reshape(-1, a.shape[-1])
+        if b.ndim != 2:
+            b = b.reshape(-1, b.shape[-1])
+        
+        a = a.view(torch.uint8)
+        b = b.view(torch.uint8)
+
         M = a.shape[0]
         N = b.shape[0]
         K = a.shape[1] * 2  # FP4 is packed 2 values per byte

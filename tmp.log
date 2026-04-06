@@ -1,715 +1,0 @@
-seed = 955873387892604119
-
-======================================================================
-Testing Stage 4 W=28 (Stage 3 W=34)
-======================================================================
-Starting MMA Modeling Verification (10000 iterations)...
-Test 1/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 2/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 3/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 4/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 5/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 6/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 7/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 8/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 9/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 10/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 11/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 12/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 13/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 14/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 15/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 16/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 17/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 18/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 19/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 20/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 21/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 22/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 23/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 24/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 25/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 26/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 27/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 28/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 29/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 30/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 31/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 32/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 33/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 34/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 35/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 36/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 37/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 38/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 39/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 40/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 41/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 42/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 43/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 44/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 45/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 46/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 47/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 48/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 49/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 50/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 51/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 52/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 53/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 54/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 55/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 56/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 57/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 58/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 59/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 60/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 61/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 62/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 63/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 64/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 65/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 66/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 67/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 68/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 69/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 70/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 71/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 72/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 73/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 74/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 75/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 76/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 77/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 78/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 79/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 80/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 81/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 82/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 83/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 84/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 85/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 86/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 87/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 88/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 89/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 90/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 91/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 92/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 93/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 94/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 95/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 96/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 97/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 98/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 99/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 100/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 101/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 102/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 103/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 104/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 105/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 106/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 107/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 108/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 109/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 110/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 111/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 112/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 113/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 114/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 115/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 116/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 117/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 118/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 119/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 120/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 121/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 122/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 123/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 124/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 125/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 126/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 127/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 128/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 129/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 130/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 131/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 132/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 133/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 134/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 135/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 136/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 137/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 138/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 139/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 140/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 141/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 142/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 143/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 144/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 145/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 146/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 147/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 148/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 149/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 150/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 151/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 152/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 153/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 154/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 155/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 156/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 157/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 158/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 159/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 160/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 161/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 162/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 163/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 164/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 165/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 166/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 167/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 168/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 169/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 170/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 171/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 172/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 173/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 174/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 175/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 176/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 177/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 178/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 179/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 180/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 181/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 182/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 183/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 184/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 185/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 186/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 187/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 188/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 189/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 190/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 191/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 192/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 193/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 194/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 195/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 196/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 197/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 198/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 199/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 200/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 201/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 202/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 203/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 204/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 205/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 206/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 207/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 208/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 209/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 210/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 211/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 212/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 213/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 214/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 215/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 216/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 217/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 218/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 219/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 220/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 221/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 222/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 223/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 224/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 225/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 226/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 227/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 228/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 229/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 230/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 231/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 232/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 233/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 234/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 235/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 236/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 237/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 238/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 239/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 240/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 241/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 242/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 243/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 244/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 245/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 246/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 247/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 248/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 249/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 250/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 251/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 252/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 253/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 254/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 255/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 256/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 257/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 258/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 259/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 260/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 261/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 262/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 263/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 264/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 265/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 266/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 267/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 268/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 269/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 270/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 271/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 272/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 273/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 274/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 275/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 276/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 277/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 278/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 279/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 280/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 281/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 282/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 283/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 284/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 285/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 286/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 287/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 288/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 289/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 290/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 291/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 292/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 293/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 294/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 295/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 296/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 297/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 298/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 299/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 300/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 301/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 302/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 303/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 304/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 305/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 306/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 307/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 308/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 309/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 310/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 311/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 312/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 313/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 314/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 315/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 316/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 317/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 318/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 319/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 320/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 321/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 322/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 323/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 324/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 325/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 326/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 327/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 328/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 329/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 330/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 331/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 332/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 333/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 334/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 335/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 336/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 337/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 338/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 339/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 340/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 341/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 342/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 343/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 344/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 345/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 346/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 347/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 348/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 349/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 350/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 351/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 352/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 353/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 354/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 355/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 356/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 357/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 358/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 359/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 360/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 361/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 362/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 363/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 364/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 365/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 366/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 367/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 368/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 369/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 370/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 371/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 372/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 373/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 374/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 375/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 376/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 377/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 378/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 379/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 380/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 381/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 382/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 383/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 384/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 385/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 386/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 387/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 388/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 389/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 390/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 391/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 392/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 393/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 394/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 395/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 396/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 397/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 398/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 399/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 400/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 401/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 402/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 403/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 404/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 405/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 406/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 407/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 408/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 409/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 410/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 411/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 412/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 413/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 414/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 415/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 416/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 417/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 418/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 419/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 420/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 421/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 422/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 423/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 424/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 425/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 426/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 427/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 428/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 429/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 430/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 431/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 432/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 433/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 434/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 435/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 436/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 437/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 438/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 439/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 440/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 441/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 442/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 443/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 444/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 445/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 446/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 447/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 448/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 449/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 450/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 451/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 452/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 453/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 454/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 455/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 456/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 457/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 458/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 459/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 460/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 461/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 462/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 463/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 464/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 465/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 466/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 467/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 468/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 469/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 470/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 471/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 472/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 473/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 474/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 475/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 476/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 477/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 478/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 479/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 480/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 481/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 482/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 483/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 484/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 485/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 486/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 487/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 488/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 489/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 490/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 491/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 492/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 493/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 494/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 495/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 496/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 497/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 498/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 499/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 500/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 501/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 502/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 503/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 504/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 505/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 506/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 507/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 508/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 509/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 510/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 511/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 512/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 513/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 514/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 515/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 516/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 517/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 518/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 519/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 520/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 521/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 522/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 523/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 524/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 525/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 526/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 527/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 528/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 529/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 530/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 531/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 532/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 533/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 534/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 535/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 536/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 537/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 538/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 539/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 540/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 541/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 542/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 543/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 544/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 545/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 546/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 547/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 548/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 549/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 550/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 551/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 552/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 553/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 554/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 555/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 556/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 557/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 558/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 559/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 560/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 561/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 562/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 563/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 564/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 565/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 566/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 567/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 568/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 569/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 570/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 571/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 572/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 573/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 574/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 575/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 576/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 577/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 578/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 579/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 580/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 581/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 582/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 583/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 584/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 585/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 586/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 587/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 588/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 589/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 590/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 591/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 592/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 593/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 594/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 595/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 596/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 597/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 598/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 599/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 600/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 601/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 602/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 603/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 604/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 605/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 606/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 607/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 608/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 609/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 610/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 611/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 612/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 613/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 614/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 615/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 616/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 617/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 618/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 619/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 620/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 621/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 622/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 623/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 624/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 625/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 626/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 627/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 628/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 629/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 630/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 631/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 632/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 633/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 634/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 635/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 636/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 637/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 638/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 639/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 640/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 641/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 642/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 643/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 644/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 645/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 646/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 647/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 648/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 649/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 650/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 651/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 652/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 653/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 654/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 655/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 656/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 657/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 658/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 659/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 660/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 661/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 662/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 663/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 664/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 665/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 666/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 667/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 668/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 669/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 670/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 671/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 672/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 673/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 674/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 675/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 676/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 677/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 678/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 679/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 680/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 681/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 682/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 683/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 684/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 685/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 686/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 687/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 688/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 689/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 690/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 691/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 692/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 693/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 694/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 695/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 696/10000: K= 128, A=outliers  , B=outliers   ... SUCCESS
-Test 697/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 698/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 699/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 700/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 701/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 702/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 703/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 704/10000: K=1024, A=outliers  , B=outliers   ... SUCCESS
-Test 705/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 706/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 707/10000: K= 256, A=outliers  , B=outliers   ... SUCCESS
-Test 708/10000: K= 512, A=outliers  , B=outliers   ... SUCCESS
-Test 709/10000: K= 128, A=outliers  , B=outliers   ... 
