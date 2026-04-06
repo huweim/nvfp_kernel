@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from .ops import (
     cutlass_scaled_fp4_mm,
+    get_active_backend,
     reciprocal_approximate_ftz_tensor,
     scaled_fp4_quant,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "MMAEngine",
     "scaled_fp4_quant",
     "cutlass_scaled_fp4_mm",
+    "get_active_backend",
     "reciprocal_approximate_ftz_tensor",
     "pytorch_nvfp4_quantize",
     "nvfp4_pseudo_quantize",

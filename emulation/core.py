@@ -117,6 +117,7 @@ class MMAEngine:
     ):
         """NVFP4 MMA Accuracy Emulation with M-dimension chunking to avoid OOM"""
         from .utils import NVFP4Utils
+
         
         assert K % 16 == 0, "K must be multiple of 16 (group size)"
         assert (K // 16) % 4 == 0, "G must be multiple of 4 (mma.k64 blocks)"
