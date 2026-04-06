@@ -35,6 +35,12 @@ class EmulationKernel:
         stage3_rounding: RoundStrategy = RoundStrategy.RZ,
         stage4_rounding: RoundStrategy = RoundStrategy.RZ,
         m_chunk_size: int = 128,
+        use_triton: bool = False,
+        triton_block_size: int = 256,
+        triton_use_stage3: bool = True,
+        triton_fuse_stage34: bool = False,
+        triton_verify_stage3: bool = False,
+        triton_verify_stage4: bool = False,
     ):
         """
         Initialize emulation kernel with fixed configuration.
@@ -58,6 +64,12 @@ class EmulationKernel:
             self.stage3_rounding = stage3_rounding
             self.stage4_rounding = stage4_rounding
         self.m_chunk_size = m_chunk_size
+        self.use_triton = use_triton
+        self.triton_block_size = triton_block_size
+        self.triton_use_stage3 = triton_use_stage3
+        self.triton_fuse_stage34 = triton_fuse_stage34
+        self.triton_verify_stage3 = triton_verify_stage3
+        self.triton_verify_stage4 = triton_verify_stage4
     
     def __call__(
         self,
@@ -104,22 +116,44 @@ class EmulationKernel:
         N = b.shape[0]
         K = a.shape[1] * 2  # FP4 is packed 2 values per byte
         
-        # Run emulation with chunking to avoid OOM
-        result = MMAEngine.emulation_scaled_fp4_mm(
-            a_fp4=a,
-            b_fp4=b,
-            scale_a=block_scale_a,
-            scale_b=block_scale_b,
-            alpha_tensor=alpha,
-            M=M,
-            N=N,
-            K=K,
-            W_stage3=self.w_stage3,
-            W_stage4=self.w_stage4,
-            stage3_rounding=self.stage3_rounding,
-            stage4_rounding=self.stage4_rounding,
-            m_chunk_size=self.m_chunk_size,
-        )
+        if self.use_triton:
+            result = MMAEngine.emulation_scaled_fp4_mm_triton(
+                a_fp4=a,
+                b_fp4=b,
+                scale_a=block_scale_a,
+                scale_b=block_scale_b,
+                alpha_tensor=alpha,
+                M=M,
+                N=N,
+                K=K,
+                W_stage3=self.w_stage3,
+                W_stage4=self.w_stage4,
+                stage3_rounding=self.stage3_rounding,
+                stage4_rounding=self.stage4_rounding,
+                m_chunk_size=self.m_chunk_size,
+                triton_block_size=self.triton_block_size,
+                triton_use_stage3=self.triton_use_stage3,
+                triton_fuse_stage34=self.triton_fuse_stage34,
+                verify_stage3=self.triton_verify_stage3,
+                verify_stage4=self.triton_verify_stage4,
+            )
+        else:
+            # Run emulation with chunking to avoid OOM
+            result = MMAEngine.emulation_scaled_fp4_mm(
+                a_fp4=a,
+                b_fp4=b,
+                scale_a=block_scale_a,
+                scale_b=block_scale_b,
+                alpha_tensor=alpha,
+                M=M,
+                N=N,
+                K=K,
+                W_stage3=self.w_stage3,
+                W_stage4=self.w_stage4,
+                stage3_rounding=self.stage3_rounding,
+                stage4_rounding=self.stage4_rounding,
+                m_chunk_size=self.m_chunk_size,
+            )
         
         # Cast to requested output dtype
         return result.to(out_dtype)
@@ -162,7 +196,7 @@ class EmulationKernel:
         )
     
     @classmethod
-    def for_rtx_5090(cls) -> "EmulationKernel":
+    def for_rtx_5090(cls, **kwargs) -> "EmulationKernel":
         """
         Create kernel with optimal configuration for RTX 5090.
         
@@ -174,6 +208,7 @@ class EmulationKernel:
             w_stage4=28,
             stage3_rounding=RoundStrategy.RZ,
             stage4_rounding=RoundStrategy.RZ,
+            **kwargs,
         )
     
     @classmethod
