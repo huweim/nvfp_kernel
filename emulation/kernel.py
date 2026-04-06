@@ -34,8 +34,13 @@ class EmulationKernel:
         w_stage4: int = 28,
         stage3_rounding: RoundStrategy = RoundStrategy.RZ,
         stage4_rounding: RoundStrategy = RoundStrategy.RZ,
-        # m_chunk_size: int = 128,
-        m_chunk_size: int = 2048,
+        m_chunk_size: int = 128,
+        use_triton: bool = False,
+        triton_block_size: int = 256,
+        triton_use_stage3: bool = True,
+        triton_fuse_stage34: bool = False,
+        triton_verify_stage3: bool = False,
+        triton_verify_stage4: bool = False,
     ):
         """
         Initialize emulation kernel with fixed configuration.
@@ -59,6 +64,12 @@ class EmulationKernel:
             self.stage3_rounding = stage3_rounding
             self.stage4_rounding = stage4_rounding
         self.m_chunk_size = m_chunk_size
+        self.use_triton = use_triton
+        self.triton_block_size = triton_block_size
+        self.triton_use_stage3 = triton_use_stage3
+        self.triton_fuse_stage34 = triton_fuse_stage34
+        self.triton_verify_stage3 = triton_verify_stage3
+        self.triton_verify_stage4 = triton_verify_stage4
     
     def __call__(
         self,
@@ -75,8 +86,10 @@ class EmulationKernel:
         Args:
             a: FP4 quantized activation tensor [M, K/2] (uint8 packed)
             b: FP4 quantized weight tensor [N, K/2] (uint8 packed)
-            block_scale_a: Block scales for activation [M, K/16] (float8_e4m3fn)
-            block_scale_b: Block scales for weight [N, K/16] (float8_e4m3fn)
+            block_scale_a: Padded+swizzled block scales for activation
+                [round_up(M, 128), round_up(K/16, 4)] (float8_e4m3fn)
+            block_scale_b: Padded+swizzled block scales for weight
+                [round_up(N, 128), round_up(K/16, 4)] (float8_e4m3fn)
             alpha: Global scale factor [1] (float32)
             out_dtype: Output dtype (float16 or bfloat16)
             
@@ -96,6 +109,8 @@ class EmulationKernel:
     ) -> torch.Tensor:
         """
         Execute emulated NVFP4 GEMM (same as __call__)."""
+        self._validate_inputs(a, b, block_scale_a, block_scale_b, alpha, out_dtype)
+
         # Infer dimensions from input tensors
         if a.ndim != 2:
             a = a.reshape(-1, a.shape[-1])
@@ -109,28 +124,87 @@ class EmulationKernel:
         N = b.shape[0]
         K = a.shape[1] * 2  # FP4 is packed 2 values per byte
         
-        # Run emulation with chunking to avoid OOM
-        result = MMAEngine.emulation_scaled_fp4_mm(
-            a_fp4=a,
-            b_fp4=b,
-            scale_a=block_scale_a,
-            scale_b=block_scale_b,
-            alpha_tensor=alpha,
-            M=M,
-            N=N,
-            K=K,
-            W_stage3=self.w_stage3,
-            W_stage4=self.w_stage4,
-            stage3_rounding=self.stage3_rounding,
-            stage4_rounding=self.stage4_rounding,
-            m_chunk_size=self.m_chunk_size,
-        )
+        if self.use_triton:
+            result = MMAEngine.emulation_scaled_fp4_mm_triton(
+                a_fp4=a,
+                b_fp4=b,
+                scale_a=block_scale_a,
+                scale_b=block_scale_b,
+                alpha_tensor=alpha,
+                M=M,
+                N=N,
+                K=K,
+                W_stage3=self.w_stage3,
+                W_stage4=self.w_stage4,
+                stage3_rounding=self.stage3_rounding,
+                stage4_rounding=self.stage4_rounding,
+                m_chunk_size=self.m_chunk_size,
+                triton_block_size=self.triton_block_size,
+                triton_use_stage3=self.triton_use_stage3,
+                triton_fuse_stage34=self.triton_fuse_stage34,
+                verify_stage3=self.triton_verify_stage3,
+                verify_stage4=self.triton_verify_stage4,
+            )
+        else:
+            # Run emulation with chunking to avoid OOM
+            result = MMAEngine.emulation_scaled_fp4_mm(
+                a_fp4=a,
+                b_fp4=b,
+                scale_a=block_scale_a,
+                scale_b=block_scale_b,
+                alpha_tensor=alpha,
+                M=M,
+                N=N,
+                K=K,
+                W_stage3=self.w_stage3,
+                W_stage4=self.w_stage4,
+                stage3_rounding=self.stage3_rounding,
+                stage4_rounding=self.stage4_rounding,
+                m_chunk_size=self.m_chunk_size,
+            )
         
         # Cast to requested output dtype
         return result.to(out_dtype)
+
+    @staticmethod
+    def _round_up(x: int, y: int) -> int:
+        return (x + y - 1) // y * y
+
+    def _validate_inputs(
+        self,
+        a: torch.Tensor,
+        b: torch.Tensor,
+        block_scale_a: torch.Tensor,
+        block_scale_b: torch.Tensor,
+        alpha: torch.Tensor,
+        out_dtype: torch.dtype,
+    ) -> None:
+        # Keep emulation path aligned with ops.cutlass_scaled_fp4_mm contracts.
+        assert a.is_cuda and b.is_cuda, "a and b must be CUDA tensors"
+        assert block_scale_a.is_cuda and block_scale_b.is_cuda, "block scales must be CUDA tensors"
+        assert alpha.is_cuda, "alpha must be a CUDA tensor"
+        assert a.ndim == 2 and b.ndim == 2, "a and b must be 2D tensors"
+        assert a.dtype == torch.uint8 and b.dtype == torch.uint8, "a and b must be uint8 packed FP4"
+        assert out_dtype in (torch.float16, torch.bfloat16), "out_dtype must be fp16 or bf16"
+        assert a.shape[1] == b.shape[1], f"k mismatch: a.shape={a.shape}, b.shape={b.shape}"
+
+        M = a.shape[0]
+        N = b.shape[0]
+        K = a.shape[1] * 2
+        G = K // 16
+        expected_scale_a = (self._round_up(M, 128), self._round_up(G, 4))
+        expected_scale_b = (self._round_up(N, 128), self._round_up(G, 4))
+
+        assert block_scale_a.ndim == 2 and block_scale_b.ndim == 2, "block scales must be 2D tensors"
+        assert block_scale_a.shape == expected_scale_a, (
+            f"scale_a must be padded+swizzled to {expected_scale_a}, got {tuple(block_scale_a.shape)}"
+        )
+        assert block_scale_b.shape == expected_scale_b, (
+            f"scale_b must be padded+swizzled to {expected_scale_b}, got {tuple(block_scale_b.shape)}"
+        )
     
     @classmethod
-    def for_rtx_5090(cls) -> "EmulationKernel":
+    def for_rtx_5090(cls, **kwargs) -> "EmulationKernel":
         """
         Create kernel with optimal configuration for RTX 5090.
         
@@ -142,6 +216,7 @@ class EmulationKernel:
             w_stage4=28,
             stage3_rounding=RoundStrategy.RZ,
             stage4_rounding=RoundStrategy.RZ,
+            **kwargs,
         )
     
     @classmethod
@@ -172,8 +247,10 @@ def emulated_fp4_mm(
     Args:
         a: FP4 quantized activation tensor [M, K/2]
         b: FP4 quantized weight tensor [N, K/2]
-        block_scale_a: Block scales for activation [M, K/16]
-        block_scale_b: Block scales for weight [N, K/16]
+        block_scale_a: Padded+swizzled block scales for activation
+            [round_up(M, 128), round_up(K/16, 4)]
+        block_scale_b: Padded+swizzled block scales for weight
+            [round_up(N, 128), round_up(K/16, 4)]
         alpha: Global scale factor [1]
         out_dtype: Output dtype (default: float16)
         config: Optional HardwareConfig (uses RTX 5090 defaults if None)
