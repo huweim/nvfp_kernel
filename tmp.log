@@ -1,0 +1,31 @@
+[Load] Loading model from /mnt/model/llama-2-7b-hf...
+[Load] Device: cuda, Dtype: torch.float16
+[Load] Model loaded successfully!
+[Quant] Applying 4-bit weight, 4-bit activation quantization
+[Quant] Mode: emulation
+[Quant] Note: 'emulation' mode works on any GPU (A100, H100, etc.)
+[Quant] Quantization applied successfully!
+
+============================================================
+Generation Settings:
+  Prompt tokens: ~4
+  Max new tokens: 50
+  Temperature: 0.0
+  Quantization: emulation
+============================================================
+
+[Generate] Starting generation...
+
+
+============================================================
+GENERATED TEXT:
+============================================================
+Your prompt here. Hinweis: Bitte aktualisieren Sie Ihren Browser.
+The 2018 FIFA World Cup was the 21st FIFA World Cup, an international football tournament contested by the men’s national teams of the member associations
+============================================================
+
+Generation Statistics:
+  Time: 69.33s
+  Tokens: 50
+  Speed: 0.72 tokens/sec
+============================================================

@@ -118,6 +118,7 @@ def run_benchmark(
 
 def run_stage_profile(
     emu_fn,
+    profile_emu_fn,
     a_fp4: torch.Tensor,
     b_fp4: torch.Tensor,
     scale_a: torch.Tensor,
@@ -134,9 +135,10 @@ def run_stage_profile(
     extra_kwargs: dict | None = None,
 ) -> dict[str, float]:
     extra_kwargs = extra_kwargs or {}
+    profile_emu_fn = profile_emu_fn or emu_fn
     with torch.no_grad():
         for _ in range(warmup):
-            _ = emu_fn(
+            _ = profile_emu_fn(
                 a_fp4,
                 b_fp4,
                 scale_a,
@@ -153,7 +155,7 @@ def run_stage_profile(
 
         profiles = []
         for _ in range(iters):
-            _, profile = emu_fn(
+            _, profile = profile_emu_fn(
                 a_fp4,
                 b_fp4,
                 scale_a,
@@ -210,7 +212,12 @@ def main() -> int:
     parser.add_argument("--w-stage3", type=int, default=34)
     parser.add_argument("--w-stage4", type=int, default=28)
     parser.add_argument("--m-chunk-size", type=int, default=128)
-    parser.add_argument("--impl", type=str, default="optimized", choices=["baseline", "optimized", "triton"])
+    parser.add_argument(
+        "--impl",
+        type=str,
+        default="optimized",
+        choices=["baseline", "optimized", "triton", "triton_stage234", "triton_stage234_bmm"],
+    )
     parser.add_argument("--skip-correctness-check", action="store_true")
     parser.add_argument("--triton-block-size", type=int, default=256)
     parser.add_argument("--triton-disable-stage3", action="store_true")
@@ -254,9 +261,11 @@ def main() -> int:
 
     if args.impl == "optimized":
         emu_fn = MMAEngine.emulation_scaled_fp4_mm_optimized
+        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm_optimized
         extra_kwargs = {}
     elif args.impl == "triton":
         emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton
+        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton_profile
         extra_kwargs = {
             "triton_block_size": args.triton_block_size,
             "triton_use_stage3": not args.triton_disable_stage3,
@@ -264,11 +273,24 @@ def main() -> int:
             "verify_stage3": args.triton_verify_stage3,
             "verify_stage4": args.triton_verify_stage4,
         }
+    elif args.impl == "triton_stage234":
+        emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused
+        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_profile
+        extra_kwargs = {
+            "triton_block_size": args.triton_block_size,
+        }
+    elif args.impl == "triton_stage234_bmm":
+        emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm
+        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm_profile
+        extra_kwargs = {
+            "triton_block_size": args.triton_block_size,
+        }
     else:
         emu_fn = MMAEngine.emulation_scaled_fp4_mm
+        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm
         extra_kwargs = {}
 
-    if args.impl in ("optimized", "triton") and not args.skip_correctness_check:
+    if args.impl in ("optimized", "triton", "triton_stage234", "triton_stage234_bmm") and not args.skip_correctness_check:
         print("Running exact correctness check against baseline...")
         with torch.no_grad():
             ref_out = MMAEngine.emulation_scaled_fp4_mm(
@@ -327,6 +349,7 @@ def main() -> int:
         print("Running stage profiling...")
         stage_profile = run_stage_profile(
             emu_fn=emu_fn,
+            profile_emu_fn=profile_emu_fn,
             a_fp4=a_fp4,
             b_fp4=b_fp4,
             scale_a=scale_a,
