@@ -30,8 +30,9 @@ class EmulationKernel:
     def __init__(
         self,
         config: Optional[HardwareConfig] = None,
-        w_stage3: int = 34,
-        w_stage4: int = 28,
+        w_stage3: int = 36,
+        # w_stage4: int = 28,
+        w_stage4: int = 36,
         stage3_rounding: RoundStrategy = RoundStrategy.RZ,
         stage4_rounding: RoundStrategy = RoundStrategy.RZ,
         m_chunk_size: int = 128,
@@ -41,6 +42,7 @@ class EmulationKernel:
         triton_fuse_stage34: bool = False,
         triton_verify_stage3: bool = False,
         triton_verify_stage4: bool = False,
+        emulation_impl: str = "beam_234fusion",
     ):
         """
         Initialize emulation kernel with fixed configuration.
@@ -70,6 +72,7 @@ class EmulationKernel:
         self.triton_fuse_stage34 = triton_fuse_stage34
         self.triton_verify_stage3 = triton_verify_stage3
         self.triton_verify_stage4 = triton_verify_stage4
+        self.emulation_impl = emulation_impl
     
     def __call__(
         self,
@@ -125,26 +128,66 @@ class EmulationKernel:
         K = a.shape[1] * 2  # FP4 is packed 2 values per byte
         
         if self.use_triton:
-            result = MMAEngine.emulation_scaled_fp4_mm_triton(
-                a_fp4=a,
-                b_fp4=b,
-                scale_a=block_scale_a,
-                scale_b=block_scale_b,
-                alpha_tensor=alpha,
-                M=M,
-                N=N,
-                K=K,
-                W_stage3=self.w_stage3,
-                W_stage4=self.w_stage4,
-                stage3_rounding=self.stage3_rounding,
-                stage4_rounding=self.stage4_rounding,
-                m_chunk_size=self.m_chunk_size,
-                triton_block_size=self.triton_block_size,
-                triton_use_stage3=self.triton_use_stage3,
-                triton_fuse_stage34=self.triton_fuse_stage34,
-                verify_stage3=self.triton_verify_stage3,
-                verify_stage4=self.triton_verify_stage4,
-            )
+            if self.emulation_impl == "beam_naive_triton":
+                result = MMAEngine.emulation_scaled_fp4_mm_triton(
+                    a_fp4=a,
+                    b_fp4=b,
+                    scale_a=block_scale_a,
+                    scale_b=block_scale_b,
+                    alpha_tensor=alpha,
+                    M=M,
+                    N=N,
+                    K=K,
+                    W_stage3=self.w_stage3,
+                    W_stage4=self.w_stage4,
+                    stage3_rounding=self.stage3_rounding,
+                    stage4_rounding=self.stage4_rounding,
+                    m_chunk_size=self.m_chunk_size,
+                    triton_block_size=self.triton_block_size,
+                    triton_use_stage3=self.triton_use_stage3,
+                    triton_fuse_stage34=self.triton_fuse_stage34,
+                    verify_stage3=self.triton_verify_stage3,
+                    verify_stage4=self.triton_verify_stage4,
+                )
+            elif self.emulation_impl == "beam_234fusion":
+                result = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused(
+                    a_fp4=a,
+                    b_fp4=b,
+                    scale_a=block_scale_a,
+                    scale_b=block_scale_b,
+                    alpha_tensor=alpha,
+                    M=M,
+                    N=N,
+                    K=K,
+                    W_stage3=self.w_stage3,
+                    W_stage4=self.w_stage4,
+                    stage3_rounding=self.stage3_rounding,
+                    stage4_rounding=self.stage4_rounding,
+                    m_chunk_size=self.m_chunk_size,
+                    triton_block_size=self.triton_block_size,
+                )
+            elif self.emulation_impl == "beam_234fusion_bmm":
+                result = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
+                    a_fp4=a,
+                    b_fp4=b,
+                    scale_a=block_scale_a,
+                    scale_b=block_scale_b,
+                    alpha_tensor=alpha,
+                    M=M,
+                    N=N,
+                    K=K,
+                    W_stage3=self.w_stage3,
+                    W_stage4=self.w_stage4,
+                    stage3_rounding=self.stage3_rounding,
+                    stage4_rounding=self.stage4_rounding,
+                    m_chunk_size=self.m_chunk_size,
+                    triton_block_size=self.triton_block_size,
+                )
+            else:
+                raise ValueError(
+                    f"Unsupported emulation_impl={self.emulation_impl!r}. "
+                    "Expected 'beam_naive_triton', 'beam_234fusion', or 'beam_234fusion_bmm'."
+                )
         else:
             # Run emulation with chunking to avoid OOM
             result = MMAEngine.emulation_scaled_fp4_mm(
@@ -212,8 +255,9 @@ class EmulationKernel:
         This is the recommended configuration for RTX 5090 emulation.
         """
         return cls(
-            w_stage3=34,
-            w_stage4=28,
+            w_stage3=36,
+            # w_stage4=28,
+            w_stage4=36,
             stage3_rounding=RoundStrategy.RZ,
             stage4_rounding=RoundStrategy.RZ,
             **kwargs,
