@@ -1,4 +1,22 @@
+import os
+
 import torch
+
+
+def _configured_emulation_impl() -> str:
+    impl = os.getenv("NVFP_EMULATION_IMPL", "beam_234fusion").strip().lower()
+    valid = {
+        "baseline",
+        "beam_naive_triton",
+        "beam_234fusion",
+        "beam_234fusion_bmm",
+    }
+    if impl not in valid:
+        valid_csv = ", ".join(sorted(valid))
+        raise ValueError(
+            f"Invalid NVFP_EMULATION_IMPL={impl!r}; expected one of: {valid_csv}"
+        )
+    return impl
 
 
 def scaled_fp4_quant(
@@ -77,7 +95,44 @@ def cutlass_scaled_fp4_mm(
     m, k_packed = a.shape
     n = b.shape[0]
     k = k_packed * 2
-    out = MMAEngine.emulation_scaled_fp4_mm(
-        a, b, block_scale_a, block_scale_b, alpha, m, n, k
-    )
+    impl = _configured_emulation_impl()
+    if impl == "baseline":
+        out = MMAEngine.emulation_scaled_fp4_mm(
+            a, b, block_scale_a, block_scale_b, alpha, m, n, k
+        )
+    elif impl == "beam_naive_triton":
+        out = MMAEngine.emulation_scaled_fp4_mm_triton(
+            a,
+            b,
+            block_scale_a,
+            block_scale_b,
+            alpha,
+            m,
+            n,
+            k,
+            triton_use_stage3=True,
+            triton_fuse_stage34=True,
+        )
+    elif impl == "beam_234fusion":
+        out = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused(
+            a,
+            b,
+            block_scale_a,
+            block_scale_b,
+            alpha,
+            m,
+            n,
+            k,
+        )
+    else:
+        out = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
+            a,
+            b,
+            block_scale_a,
+            block_scale_b,
+            alpha,
+            m,
+            n,
+            k,
+        )
     return out.to(out_dtype)
