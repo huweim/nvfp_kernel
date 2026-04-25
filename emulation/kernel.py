@@ -36,7 +36,7 @@ class EmulationKernel:
         stage3_rounding: RoundStrategy = RoundStrategy.RZ,
         stage4_rounding: RoundStrategy = RoundStrategy.RZ,
         m_chunk_size: int = 128,
-        use_triton: bool = False,
+        use_triton: bool = True,
         triton_block_size: int = 256,
         triton_use_stage3: bool = True,
         triton_fuse_stage34: bool = False,
@@ -241,10 +241,8 @@ class EmulationKernel:
     @classmethod
     def for_rtx_5090(cls, **kwargs) -> "EmulationKernel":
         """
-        Create kernel with optimal configuration for RTX 5090.
-        
-        Configuration: W3=34, W4=28, RZ rounding for both stages.
-        This is the recommended configuration for RTX 5090 emulation.
+        Preset constructor for RTX 5090: calls __init__ with W3=36, W4=36, RZ rounding.
+        Any kwarg (e.g. emulation_impl, m_chunk_size) overrides the preset defaults.
         """
         return cls(
             w_stage3=36,

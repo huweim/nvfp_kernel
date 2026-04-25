@@ -5,9 +5,10 @@ GEMM latency profiler for NVFP4 case-study tables.
 Benchmarked methods:
 1. real_nvfp4: native FP4 GEMM via ops.cutlass_scaled_fp4_mm (RTX 5090 only)
 2. pseudo_fp16: regular FP16 GEMM via torch.nn.functional.linear
-3. beam_naive: unfused BEAM emulation with explicit CUDA-core stage-1
-4. beam_fused: Triton-fused BEAM emulation via MMAEngine.emulation_scaled_fp4_mm_triton
-5. beam_234fusion: Triton-fused Stage2+3+4 BEAM emulation via MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused
+3. beam_base: unfused BEAM emulation with explicit CUDA-core stage-1
+4. beam_fused: Triton-fused Stage3+4 BEAM emulation via MMAEngine.emulation_scaled_fp4_mm_triton
+5. beam_234fusion: Triton-fused Stage2+3+4 with einsum Stage-1
+6. beam_234fusion_bmm: Triton-fused Stage2+3+4 with batched-matmul Stage-1 (e2e default fast path)
 
 Input quantization is prepared once per K and excluded from timing.
 """
@@ -27,7 +28,7 @@ from pathlib import Path
 import torch
 import torch.nn.functional as F
 
-import ops
+from nvfp import ops
 from emulation.core import MMAEngine
 from emulation.utils import DataGenerator
 
@@ -36,7 +37,7 @@ FLOAT4_E2M1_MAX = 6.0
 FLOAT8_E4M3_MAX = 448.0
 ALPHA_SCALE = FLOAT8_E4M3_MAX * FLOAT4_E2M1_MAX
 DEFAULT_KS = (512, 1024, 2048, 4096, 8192)
-DEFAULT_METHODS = ("real_nvfp4", "pseudo_fp16", "beam_naive", "beam_fused", "beam_234fusion")
+DEFAULT_METHODS = ("real_nvfp4", "pseudo_fp16", "beam_base", "beam_fused", "beam_234fusion", "beam_234fusion_bmm")
 
 
 def parse_args() -> argparse.Namespace:
@@ -68,8 +69,8 @@ def parse_args() -> argparse.Namespace:
         choices=["auto", "on", "off"],
         help="Whether to benchmark native real NVFP4 GEMM",
     )
-    parser.add_argument("--w-stage3", type=int, default=34, help="BEAM stage-3 accumulation bits")
-    parser.add_argument("--w-stage4", type=int, default=34, help="BEAM stage-4 accumulation bits")
+    parser.add_argument("--w-stage3", type=int, default=36, help="BEAM stage-3 accumulation bits")
+    parser.add_argument("--w-stage4", type=int, default=36, help="BEAM stage-4 accumulation bits")
     parser.add_argument("--m-chunk-size", type=int, default=128, help="BEAM M chunk size")
     parser.add_argument("--triton-block-size", type=int, default=256, help="Triton block size")
     parser.add_argument(
@@ -280,7 +281,23 @@ def build_method_callables(
             triton_block_size=triton_block_size,
         )
 
-    def beam_naive():
+    def beam_234fusion_bmm():
+        return MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
+            a_fp4,
+            b_fp4,
+            scale_a,
+            scale_b,
+            alpha,
+            m,
+            n,
+            k,
+            W_stage3=w_stage3,
+            W_stage4=w_stage4,
+            m_chunk_size=m_chunk_size,
+            triton_block_size=triton_block_size,
+        )
+
+    def beam_base():
         return MMAEngine.emulation_scaled_fp4_mm(
             a_fp4,
             b_fp4,
@@ -302,9 +319,10 @@ def build_method_callables(
 
     methods = {
         "pseudo_fp16": pseudo_fp16,
-        "beam_naive": beam_naive,
+        "beam_base": beam_base,
         "beam_fused": beam_fused,
         "beam_234fusion": beam_234fusion,
+        "beam_234fusion_bmm": beam_234fusion_bmm,
     }
     if run_real:
         methods["real_nvfp4"] = real_nvfp4
@@ -474,9 +492,10 @@ def main() -> int:
         stage1_impl_map = {
             "real_nvfp4": None,
             "pseudo_fp16": None,
-            "beam_naive": "cuda_core",
+            "beam_base": "cuda_core",
             "beam_fused": "einsum",
             "beam_234fusion": "einsum",
+            "beam_234fusion_bmm": "bmm",
         }
 
         for method in DEFAULT_METHODS:

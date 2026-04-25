@@ -95,44 +95,22 @@ def cutlass_scaled_fp4_mm(
     m, k_packed = a.shape
     n = b.shape[0]
     k = k_packed * 2
+    _DISPATCH_TABLE = {
+        "baseline": lambda a, b, sa, sb, al, m, n, k: MMAEngine.emulation_scaled_fp4_mm(
+            a, b, sa, sb, al, m, n, k
+        ),
+        "beam_naive_triton": lambda a, b, sa, sb, al, m, n, k: MMAEngine.emulation_scaled_fp4_mm_triton(
+            a, b, sa, sb, al, m, n, k, triton_use_stage3=True, triton_fuse_stage34=True
+        ),
+        "beam_234fusion": lambda a, b, sa, sb, al, m, n, k: MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused(
+            a, b, sa, sb, al, m, n, k
+        ),
+        "beam_234fusion_bmm": lambda a, b, sa, sb, al, m, n, k: MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
+            a, b, sa, sb, al, m, n, k
+        ),
+    }
+
     impl = _configured_emulation_impl()
-    if impl == "baseline":
-        out = MMAEngine.emulation_scaled_fp4_mm(
-            a, b, block_scale_a, block_scale_b, alpha, m, n, k
-        )
-    elif impl == "beam_naive_triton":
-        out = MMAEngine.emulation_scaled_fp4_mm_triton(
-            a,
-            b,
-            block_scale_a,
-            block_scale_b,
-            alpha,
-            m,
-            n,
-            k,
-            triton_use_stage3=True,
-            triton_fuse_stage34=True,
-        )
-    elif impl == "beam_234fusion":
-        out = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused(
-            a,
-            b,
-            block_scale_a,
-            block_scale_b,
-            alpha,
-            m,
-            n,
-            k,
-        )
-    else:
-        out = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
-            a,
-            b,
-            block_scale_a,
-            block_scale_b,
-            alpha,
-            m,
-            n,
-            k,
-        )
+    fn = _DISPATCH_TABLE[impl]
+    out = fn(a, b, block_scale_a, block_scale_b, alpha, m, n, k)
     return out.to(out_dtype)

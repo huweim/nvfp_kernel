@@ -20,8 +20,8 @@ class HardwareConfig:
         name: Optional name for this configuration
         description: Optional description
     """
-    w_stage3: int = 34
-    w_stage4: int = 28
+    w_stage3: int = 36
+    w_stage4: int = 36
     stage3_rounding: RoundStrategy = RoundStrategy.RZ
     stage4_rounding: RoundStrategy = RoundStrategy.RZ
     name: str = "custom"
@@ -43,8 +43,8 @@ class HardwareConfig:
         and data distributions.
         """
         return cls(
-            w_stage3=34,
-            w_stage4=28,
+            w_stage3=36,
+            w_stage4=36,
             stage3_rounding=RoundStrategy.RZ,
             stage4_rounding=RoundStrategy.RZ,
             name="RTX_5090",

@@ -9,7 +9,7 @@ import random
 import traceback
 
 import torch
-import ops
+from nvfp import ops
 
 from emulation import HardwareCore, MMAEngine, NVFP4Utils, DataGenerator, DataGenerator_Abs
 
@@ -30,9 +30,9 @@ class TestRunner:
     测试执行器 - 与 verify_acc_modeling.py 完全一致
     """
     @staticmethod
-    def run_test_case(iter_idx, M, N, K, dist_a, dist_b, sample_count=5, 
-                      W_stage3=25, W_stage4=25, debug_mismatch=False):
-        """Run a single test case - 与原始代码完全一致"""
+    def run_test_case(iter_idx, M, N, K, dist_a, dist_b, sample_count=5,
+                      W_stage3=36, W_stage4=36):
+        """Run a single test case - aligned with verify_acc_modeling.py"""
         # Generate data
         a = DataGenerator.get_random_tensor((M, K), dist_a)
         b = DataGenerator.get_random_tensor((N, K), dist_b)
@@ -46,21 +46,14 @@ class TestRunner:
         a_fp4, scale_a = ops.scaled_fp4_quant(a, a_gs)
         b_fp4, scale_b = ops.scaled_fp4_quant(b, b_gs)
         real_output = ops.cutlass_scaled_fp4_mm(a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, torch.float16)
-        
-        # Modeling emulation
-        if debug_mismatch:
-            modeling_res, debug_info = MMAEngine.emulation_scaled_fp4_mm_debug(
-                a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K, 
-                W_stage3=W_stage3, W_stage4=W_stage4
-            )
-        else:
-            modeling_res = MMAEngine.emulation_scaled_fp4_mm(
-                a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K, 
-                W_stage3=W_stage3, W_stage4=W_stage4
-            )
-            debug_info = None
 
-        # Comparison - 完全对齐原始代码
+        # Modeling emulation
+        modeling_res = MMAEngine.emulation_scaled_fp4_mm(
+            a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K,
+            W_stage3=W_stage3, W_stage4=W_stage4
+        )
+
+        # Comparison - aligned with verify_acc_modeling.py
         diff = (real_output.float() - modeling_res.float()).abs()
         matches = (real_output == modeling_res)
         diff[matches] = 0.0
@@ -80,12 +73,6 @@ class TestRunner:
                     "idx": (r, c), "real": real_output[r, c].item(),
                     "model": modeling_res[r, c].item(), "diff": diff[r, c].item()
                 }
-                if debug_info is not None and K > 64:
-                    detail["debug"] = {
-                        "block_sums": [debug_info["block_sums"][b][r, c].item() for b in range(debug_info["num_blocks"])],
-                        "alpha": alpha_val,
-                        "stage4_sum_raw": debug_info["stage4_sum_raw"][r, c].item() if "stage4_sum_raw" in debug_info else None,
-                    }
                 mismatch_details.append(detail)
         
         return {
@@ -114,9 +101,9 @@ def main():
     dims_n = [128, 256, 1024, 2048, 4096]
     dims_k = [128, 256, 512, 1024]
     
-    # Test W_stage3=34, W_stage4=28 (found optimal for RTX 5090)
-    W_stage3 = 34
-    w_stage4 = 28
+    # RTX 5090 preset: W_stage3=36, W_stage4=36
+    W_stage3 = 36
+    w_stage4 = 36
     
     NUM_SAMPLES_TO_PRINT = 5
     MAX_MISMATCH_TESTS = 20
@@ -142,11 +129,9 @@ def main():
         sys.stdout.flush()
         
         try:
-            debug_mode = (K > 64)
-            res = TestRunner.run_test_case(i, M, N, K, da, db, 
-                                            sample_count=NUM_SAMPLES_TO_PRINT, 
-                                            W_stage3=W_stage3, W_stage4=w_stage4,
-                                            debug_mismatch=debug_mode)
+            res = TestRunner.run_test_case(i, M, N, K, da, db,
+                                            sample_count=NUM_SAMPLES_TO_PRINT,
+                                            W_stage3=W_stage3, W_stage4=w_stage4)
             results.append(res)
             print(f"{res['status']}")
 
@@ -155,14 +140,6 @@ def main():
                 print(f"    >>> Mismatch Details:")
                 for d in res['mismatch_details']:
                     print(f"      Pos {d['idx']}: Real={d['real']:.6f} | Model={d['model']:.6f} | Diff={d['diff']:.6f}")
-                    if 'debug' in d and d['debug'] is not None:
-                        dbg = d['debug']
-                        print(f"        [Debug] Model Block sums (raw, before alpha):")
-                        for b_idx, b_sum in enumerate(dbg['block_sums']):
-                            print(f"          Block {b_idx}: {b_sum:.6f}")
-                        print(f"        [Debug] Stage 4 sum (raw): {dbg['stage4_sum_raw']:.6f}")
-                        print(f"        [Debug] Alpha: {dbg['alpha']:.10f}")
-                        print(f"        [Debug] Expected (raw * alpha): {dbg['stage4_sum_raw'] * dbg['alpha']:.6f}")
 
         except Exception as e:
             print(f"\nFATAL ERROR on Test {i+1}: {e}")

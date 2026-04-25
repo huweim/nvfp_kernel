@@ -13,7 +13,7 @@ Quick Start:
 from .core import HardwareCore, MMAEngine
 from .utils import NVFP4Utils, DataGenerator, DataGenerator_Abs
 from .search import ParameterSearch, SearchResult
-from .rounding import RoundStrategy, RoundingRegistry
+from .rounding import RoundStrategy
 from .config import HardwareConfig, CONFIG_RTX_5090
 from .kernel import EmulationKernel, emulated_fp4_mm, emulated_scaled_fp4_mm
 
@@ -33,7 +33,6 @@ __all__ = [
     
     # Rounding
     'RoundStrategy',
-    'RoundingRegistry',
     
     # Config
     'HardwareConfig',

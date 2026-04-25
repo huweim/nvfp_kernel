@@ -209,14 +209,14 @@ def main() -> int:
     parser.add_argument("--k", type=int, default=2048)
     parser.add_argument("--iters", type=int, default=15)
     parser.add_argument("--warmup", type=int, default=5)
-    parser.add_argument("--w-stage3", type=int, default=34)
-    parser.add_argument("--w-stage4", type=int, default=28)
+    parser.add_argument("--w-stage3", type=int, default=36)
+    parser.add_argument("--w-stage4", type=int, default=36)
     parser.add_argument("--m-chunk-size", type=int, default=128)
     parser.add_argument(
         "--impl",
         type=str,
-        default="optimized",
-        choices=["baseline", "optimized", "triton", "triton_stage234", "triton_stage234_bmm"],
+        default="beam_234fusion",
+        choices=["baseline", "beam_base", "beam_fused", "beam_234fusion", "beam_234fusion_bmm"],
     )
     parser.add_argument("--skip-correctness-check", action="store_true")
     parser.add_argument("--triton-block-size", type=int, default=256)
@@ -259,13 +259,13 @@ def main() -> int:
     prep_ms = (time.time() - prep_t0) * 1000.0
     print(f"Input build + quantization (excluded from benchmark): {prep_ms:.2f} ms")
 
-    if args.impl == "optimized":
-        emu_fn = MMAEngine.emulation_scaled_fp4_mm_optimized
-        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm_optimized
-        extra_kwargs = {}
-    elif args.impl == "triton":
+    if args.impl == "beam_base":
+        emu_fn = MMAEngine.emulation_scaled_fp4_mm
+        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm
+        extra_kwargs = {"stage1_impl": "cuda_core"}
+    elif args.impl == "beam_fused":
         emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton
-        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton_profile
+        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton
         extra_kwargs = {
             "triton_block_size": args.triton_block_size,
             "triton_use_stage3": not args.triton_disable_stage3,
@@ -273,15 +273,15 @@ def main() -> int:
             "verify_stage3": args.triton_verify_stage3,
             "verify_stage4": args.triton_verify_stage4,
         }
-    elif args.impl == "triton_stage234":
+    elif args.impl == "beam_234fusion":
         emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused
-        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_profile
+        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused
         extra_kwargs = {
             "triton_block_size": args.triton_block_size,
         }
-    elif args.impl == "triton_stage234_bmm":
+    elif args.impl == "beam_234fusion_bmm":
         emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm
-        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm_profile
+        profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm
         extra_kwargs = {
             "triton_block_size": args.triton_block_size,
         }
@@ -290,7 +290,7 @@ def main() -> int:
         profile_emu_fn = MMAEngine.emulation_scaled_fp4_mm
         extra_kwargs = {}
 
-    if args.impl in ("optimized", "triton", "triton_stage234", "triton_stage234_bmm") and not args.skip_correctness_check:
+    if args.impl in ("beam_base", "beam_fused", "beam_234fusion", "beam_234fusion_bmm") and not args.skip_correctness_check:
         print("Running exact correctness check against baseline...")
         with torch.no_grad():
             ref_out = MMAEngine.emulation_scaled_fp4_mm(
