@@ -1,8 +1,10 @@
 """
 Hardware Configuration for NVFP4 Emulation
 """
+import json
 from dataclasses import dataclass
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Union
 
 from .rounding import RoundStrategy
 
@@ -60,6 +62,61 @@ class HardwareConfig:
         if "stage4_rounding" in d and isinstance(d["stage4_rounding"], str):
             d["stage4_rounding"] = RoundStrategy[d["stage4_rounding"]]
         return cls(**d)
+
+    @classmethod
+    def from_probe_report(
+        cls,
+        path: Union[str, Path],
+        *,
+        w_stage4: Optional[int] = None,
+        stage4_rounding: Optional[RoundStrategy] = None,
+        name: Optional[str] = None,
+    ) -> "HardwareConfig":
+        """Build a HardwareConfig from a §5.2 ProbeReport JSON
+        (see numerical_attribute_modeling/probe_report.py).
+
+        The probe characterizes Stage 3 = intra-instruction inter-group
+        reduction (paper §5.2). Stage 4 = cross-instruction GEMM accumulation
+        is *not* directly probed by §5.2, so callers may override w_stage4 /
+        stage4_rounding; defaults mirror Stage 3.
+        """
+        with open(path, "r") as f:
+            d = json.load(f)
+
+        sv = d.get("schema_version")
+        if sv != "1":
+            raise ValueError(f"unsupported probe-report schema_version {sv!r}; "
+                             f"this build of HardwareConfig understands '1'")
+
+        inter = d.get("inter_group")
+        if not inter:
+            raise ValueError("probe report has no inter_group section — "
+                             "Stage 3 cannot be configured from this report")
+
+        bits = inter.get("accum_bits")
+        rounding_str = inter.get("rounding")
+        if bits is None or rounding_str is None:
+            raise ValueError("inter_group must specify accum_bits and rounding "
+                             "to drive Stage 3 of the emulation pipeline")
+
+        try:
+            stage3_rounding = RoundStrategy[rounding_str]
+        except KeyError:
+            raise ValueError(f"inter_group.rounding {rounding_str!r} not in "
+                             f"RoundStrategy enum")
+
+        return cls(
+            w_stage3=int(bits),
+            w_stage4=int(w_stage4 if w_stage4 is not None else bits),
+            stage3_rounding=stage3_rounding,
+            stage4_rounding=stage4_rounding if stage4_rounding is not None else stage3_rounding,
+            name=name or d.get("device", {}).get("gpu_name", "from_probe_report"),
+            description=(
+                f"loaded from {path}; "
+                f"format={d.get('instruction', {}).get('format', '?')}; "
+                f"arch={d.get('device', {}).get('arch', '?')}"
+            ),
+        )
     
     def to_dict(self) -> dict:
         """Convert to dictionary."""
