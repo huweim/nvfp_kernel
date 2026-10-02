@@ -96,21 +96,24 @@ def cutlass_scaled_fp4_mm(
     n = b.shape[0]
     k = k_packed * 2
     _DISPATCH_TABLE = {
-        "baseline": lambda a, b, sa, sb, al, m, n, k: MMAEngine.emulation_scaled_fp4_mm(
-            a, b, sa, sb, al, m, n, k
+        "baseline": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm(
+            a, b, sa, sb, al, m, n, k, W_stage3=w3, W_stage4=w4
         ),
-        "beam_naive_triton": lambda a, b, sa, sb, al, m, n, k: MMAEngine.emulation_scaled_fp4_mm_triton(
-            a, b, sa, sb, al, m, n, k, triton_use_stage3=True, triton_fuse_stage34=True
+        "beam_naive_triton": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_triton(
+            a, b, sa, sb, al, m, n, k, W_stage3=w3, W_stage4=w4, triton_use_stage3=True, triton_fuse_stage34=True
         ),
-        "beam_234fusion": lambda a, b, sa, sb, al, m, n, k: MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused(
-            a, b, sa, sb, al, m, n, k
+        "beam_234fusion": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused(
+            a, b, sa, sb, al, m, n, k, W_stage3=w3, W_stage4=w4
         ),
-        "beam_234fusion_bmm": lambda a, b, sa, sb, al, m, n, k: MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
-            a, b, sa, sb, al, m, n, k
+        "beam_234fusion_bmm": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
+            a, b, sa, sb, al, m, n, k, W_stage3=w3, W_stage4=w4
         ),
     }
 
     impl = _configured_emulation_impl()
     fn = _DISPATCH_TABLE[impl]
-    out = fn(a, b, block_scale_a, block_scale_b, alpha, m, n, k)
+    # Use the probed RTX 5090 template (W3=W4=36, RZ), the same preset as EmulationKernel.for_rtx_5090.
+    # Without this the MMAEngine signature defaults (W=25) would silently apply on this env-driven path.
+    w3, w4 = int(os.getenv("NVFP_EMULATION_W3", "36")), int(os.getenv("NVFP_EMULATION_W4", "36"))
+    out = fn(a, b, block_scale_a, block_scale_b, alpha, m, n, k, w3, w4)
     return out.to(out_dtype)
