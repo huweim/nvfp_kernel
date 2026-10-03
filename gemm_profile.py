@@ -8,7 +8,7 @@ Benchmarked methods:
 3. beam_base: unfused BEAM emulation with explicit CUDA-core stage-1
 4. beam_fused: Triton-fused Stage3+4 BEAM emulation via MMAEngine.emulation_scaled_fp4_mm_triton
 5. beam_234fusion: Triton-fused Stage2+3+4 with einsum Stage-1
-6. beam_234fusion_bmm: Triton-fused Stage2+3+4 with batched-matmul Stage-1 (e2e default fast path)
+6. beam_234fusion_bmm: Triton-fused Stage2+3+4 with batched-matmul Stage-1 (slower than beam_234fusion at every M on RTX 5090)
 
 Input quantization is prepared once per K and excluded from timing.
 """
