@@ -11,6 +11,7 @@ def _configured_emulation_impl() -> str:
         "beam_234fusion",
         "beam_234fusion_bmm",
         "beam_fusednode",
+        "beam_base",
     }
     if impl not in valid:
         valid_csv = ", ".join(sorted(valid))
@@ -108,6 +109,11 @@ def cutlass_scaled_fp4_mm(
         ),
         "beam_234fusion_bmm": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
             a, b, sa, sb, al, m, n, k, W_stage3=w3, W_stage4=w4
+        ),
+        # opt-in ETON-Base as in the paper's Table IV "B." (gemm_profile beam_base): staged reference, stage 1 on
+        # CUDA cores; m_chunk 128 to stay clear of OOM next to vLLM's KV cache
+        "beam_base": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm(
+            a, b, sa, sb, al, m, n, k, W_stage3=w3, W_stage4=w4, m_chunk_size=128, stage1_impl="cuda_core"
         ),
         # opt-in probed-template fused node (F = W - 1); not the default
         "beam_fusednode": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_fusednode(
