@@ -622,6 +622,51 @@ class MMAEngine:
         return final
 
     @staticmethod
+    def emulation_scaled_fp4_mm_fusednode(
+        a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K,
+        F=35, m_chunk_size=512, triton_block_size=256,
+    ):
+        """
+        Probed-template NVFP4 GEMM (see emulation/triton_fusednode.py): exact fp32 group sums, then per k64
+        instruction one fused node (4 scale-anchored group terms + early C, RZ to 2^(emax-F), RZ to fp32),
+        then fp16(alpha * acc). Unlike emulation_scaled_fp4_mm_triton_stage234_fused, this matches hardware
+        under large inter-group dynamic range with cancellation.
+        """
+        from .utils import NVFP4Utils
+        from .triton_fusednode import stage234_fusednode_rz_triton
+
+        assert K % 64 == 0, "K must be a multiple of 64 (one mma.k64 per 4 groups)"
+        G = K // 16
+        s_b = pseudo_quant.swizzled_to_linear_128_4(scale_b, N, G).to(torch.float32)
+        s_a_all = pseudo_quant.swizzled_to_linear_128_4(scale_a, M, G).to(torch.float32)
+        val_a = NVFP4Utils.unpack_nvfp4_to_fp16(a_fp4, (M, K))
+        val_b = NVFP4Utils.unpack_nvfp4_to_fp16(b_fp4, (N, K))
+        b_g = val_b.view(N, G, 16).float()
+        b_nz = (b_g != 0).half()
+        out = torch.empty((M, N), device=val_a.device, dtype=torch.float32)
+        tf32 = torch.backends.cuda.matmul.allow_tf32
+        torch.backends.cuda.matmul.allow_tf32 = False   # group sums must be exact fp32
+        try:
+            MMAEngine._fusednode_chunks(val_a, b_g, b_nz, s_a_all, s_b, out, M, G, F, m_chunk_size, triton_block_size,
+                                        stage234_fusednode_rz_triton)
+        finally:
+            torch.backends.cuda.matmul.allow_tf32 = tf32
+        alpha_val = alpha_tensor.item()
+        return (out * alpha_val).to(torch.float16)
+
+    @staticmethod
+    def _fusednode_chunks(val_a, b_g, b_nz, s_a_all, s_b, out, M, G, F, m_chunk_size, triton_block_size, kernel):
+        for m0 in range(0, M, m_chunk_size):
+            m1 = min(m0 + m_chunk_size, M)
+            a_g = val_a[m0:m1].view(m1 - m0, G, 16)
+            # exact group sums: e2m1 products are multiples of 1/4, |S| <= 576 -> exact in fp32 (no TF32)
+            ps1 = torch.einsum("mgk,ngk->mng", a_g.float(), b_g)
+            nnz = torch.einsum("mgk,ngk->mng", (a_g != 0).half(), b_nz) > 0
+            nnz &= (s_a_all[m0:m1] != 0).unsqueeze(1) & (s_b != 0).unsqueeze(0)
+            out[m0:m1] = kernel(ps1, nnz.to(torch.uint8), s_a_all[m0:m1], s_b, F=F, block_size=triton_block_size)
+            del ps1, nnz
+
+    @staticmethod
     def emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
         a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K,
         W_stage3=25, W_stage4=25,
