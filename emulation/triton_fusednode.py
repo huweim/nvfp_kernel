@@ -11,7 +11,8 @@ This replaces the older two-step model (_stage234_scale_fused_rz_kernel: value-a
 2-term add anchored at the accumulator), which differs from hardware under large inter-group dynamic range with
 cancellation (table3_v2: group_range / cancel families).
 
-Inputs must be exact: ps1 is float32 (a 16-term e2m1 group sum can need 12 significand bits, e.g. 540.25).
+Inputs must be exact: ps1 is float32 (a 16-term e2m1 group sum can need 12 significand bits, e.g. 540.25); it is
+produced by fp16 tensor-core bmm with fp32 output (products and partial sums are exact in fp32).
 Not modelled (never produced by the NVFP4 quantizer): NaN scales (0x7F) and the ue4m3 sign bit.
 """
 
@@ -42,9 +43,10 @@ if TRITON_FUSEDNODE_AVAILABLE:
 
     @triton.jit
     def _fusednode_kernel(
-        ps1_ptr, nnz_ptr, s_a_ptr, s_b_ptr, n_a_ptr, n_b_ptr, out_ptr,
+        ps1_ptr, cnt_ptr, s_a_ptr, s_b_ptr, n_a_ptr, n_b_ptr, out_ptr,
         num_rows, N,
         ps1_stride_m, ps1_stride_n, ps1_stride_g,
+        cnt_stride_m, cnt_stride_n, cnt_stride_g,
         s_a_stride_m, s_b_stride_n,
         F: tl.constexpr, NUM_BLOCKS: tl.constexpr, BLOCK_SIZE: tl.constexpr,
     ):
@@ -54,6 +56,7 @@ if TRITON_FUSEDNODE_AVAILABLE:
         m_idx = offs // N
         n_idx = offs - m_idx * N
         pbase = m_idx * ps1_stride_m + n_idx * ps1_stride_n
+        cbase = m_idx * cnt_stride_m + n_idx * cnt_stride_n
         abase = m_idx * s_a_stride_m
         bbase = n_idx * s_b_stride_n
         NEG: tl.constexpr = -100000
@@ -71,12 +74,12 @@ if TRITON_FUSEDNODE_AVAILABLE:
             for j in tl.static_range(4):
                 g = blk * 4 + j
                 p = tl.load(ps1_ptr + pbase + g * ps1_stride_g, mask=mask, other=0).to(tl.float64)
-                nz = tl.load(nnz_ptr + pbase + g * ps1_stride_g, mask=mask, other=0)
+                nz = tl.load(cnt_ptr + cbase + g * cnt_stride_g, mask=mask, other=0)
                 sa = tl.load(s_a_ptr + abase + g, mask=mask, other=0).to(tl.float64)
                 sb = tl.load(s_b_ptr + bbase + g, mask=mask, other=0).to(tl.float64)
                 na = tl.load(n_a_ptr + abase + g, mask=mask, other=0)
                 nb = tl.load(n_b_ptr + bbase + g, mask=mask, other=0)
-                lead = tl.where(nz != 0, na + nb, NEG)
+                lead = tl.where((nz != 0) & (sa != 0) & (sb != 0), na + nb, NEG)
                 emax = tl.maximum(emax, lead)
                 t = p * sa * sb                      # exact in fp64
                 if j == 0:
@@ -105,20 +108,20 @@ def ue4m3_nominal_exponent(s: torch.Tensor) -> torch.Tensor:
     return torch.where(s > 0, e, torch.zeros_like(e))
 
 
-def stage234_fusednode_rz_triton(ps1, nnz, s_a, s_b, F: int = 35, block_size: int = 256) -> torch.Tensor:
-    """ps1 [M,N,G] float32 exact group sums; nnz [M,N,G] uint8 (group has a nonzero product and nonzero scales);
-    s_a [M,G], s_b [N,G] float32 scale values. Returns [M,N] float32 accumulator (before alpha)."""
+def stage234_fusednode_rz_triton(ps1, cnt, s_a, s_b, F: int = 35, block_size: int = 256) -> torch.Tensor:
+    """ps1 [M,N,G] float32 exact group sums and cnt [M,N,G] (any dtype; != 0 iff the group has a nonzero product),
+    both as strided views (e.g. permuted [G,M,N] bmm outputs; no copy); s_a [M,G], s_b [N,G] scale values.
+    A group takes part in the max iff cnt != 0 and both scales are nonzero. Returns [M,N] float32 (before alpha)."""
     if not TRITON_FUSEDNODE_AVAILABLE:
         raise RuntimeError("Triton is unavailable.")
-    assert ps1.dtype == torch.float32 and nnz.dtype == torch.uint8 and ps1.shape == nnz.shape
+    assert ps1.dtype == torch.float32 and ps1.shape == cnt.shape
     m, n, g = ps1.shape
     assert g % 4 == 0 and s_a.shape == (m, g) and s_b.shape == (n, g)
-    ps1, nnz = ps1.contiguous(), nnz.contiguous()
     s_a, s_b = s_a.float().contiguous(), s_b.float().contiguous()
     n_a, n_b = ue4m3_nominal_exponent(s_a).contiguous(), ue4m3_nominal_exponent(s_b).contiguous()
     out = torch.empty((m * n,), device=ps1.device, dtype=torch.float32)
     grid = (triton.cdiv(m * n, block_size),)
-    _fusednode_kernel[grid](ps1, nnz, s_a, s_b, n_a, n_b, out, m * n, n,
-                            ps1.stride(0), ps1.stride(1), ps1.stride(2), s_a.stride(0), s_b.stride(0),
-                            F=F, NUM_BLOCKS=g // 4, BLOCK_SIZE=block_size)
+    _fusednode_kernel[grid](ps1, cnt, s_a, s_b, n_a, n_b, out, m * n, n,
+                            ps1.stride(0), ps1.stride(1), ps1.stride(2), cnt.stride(0), cnt.stride(1), cnt.stride(2),
+                            s_a.stride(0), s_b.stride(0), F=F, NUM_BLOCKS=g // 4, BLOCK_SIZE=block_size)
     return out.view(m, n)

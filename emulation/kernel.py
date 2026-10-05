@@ -175,10 +175,19 @@ class EmulationKernel:
                     m_chunk_size=self.m_chunk_size,
                     triton_block_size=self.triton_block_size,
                 )
+            elif self.emulation_impl == "beam_fusednode":
+                # probed-template fused node per k64 (opt-in; RZ only; F = W - 1 fractional bits)
+                if self.w_stage3 != self.w_stage4 or self.stage3_rounding != RoundStrategy.RZ \
+                        or self.stage4_rounding != RoundStrategy.RZ:
+                    raise ValueError("beam_fusednode models one fused node: needs W3 == W4 and RZ rounding")
+                result = MMAEngine.emulation_scaled_fp4_mm_fusednode(
+                    a, b, block_scale_a, block_scale_b, alpha, M, N, K,
+                    F=self.w_stage3 - 1, m_chunk_size=self.m_chunk_size, triton_block_size=self.triton_block_size,
+                )
             else:
                 raise ValueError(
                     f"Unsupported emulation_impl={self.emulation_impl!r}. "
-                    "Expected 'beam_naive_triton', 'beam_234fusion', or 'beam_234fusion_bmm'."
+                    "Expected 'beam_naive_triton', 'beam_234fusion', 'beam_234fusion_bmm', or 'beam_fusednode'."
                 )
         else:
             # Run emulation with chunking to avoid OOM
