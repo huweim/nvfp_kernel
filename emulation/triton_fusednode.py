@@ -125,3 +125,82 @@ def stage234_fusednode_rz_triton(ps1, cnt, s_a, s_b, F: int = 35, block_size: in
                             ps1.stride(0), ps1.stride(1), ps1.stride(2), cnt.stride(0), cnt.stride(1), cnt.stride(2),
                             s_a.stride(0), s_b.stride(0), F=F, NUM_BLOCKS=g // 4, BLOCK_SIZE=block_size)
     return out.view(m, n)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# MXFP4 (sm_120a OMMA k64, kind::mxf4nvf4 scale_vec::2X ue8m0; probe_triton/results/sm120_mxfp4.json):
+#   exact 16-element groups (2 per 32-element scale block); anchor = e(sa) + e(sb) clamped to >= -139 (term floor);
+#   a group takes part iff it has a nonzero product (ue8m0 scales are never 0); C aligned by its leading bit clamped
+#   to >= -126 (subnormal C at emin); F = 35, RZ; overflow -> +-inf (not FLT_MAX).
+if TRITON_FUSEDNODE_AVAILABLE:
+    @triton.jit
+    def _fusednode_mx_kernel(
+        ps1_ptr, cnt_ptr, e_a_ptr, e_b_ptr, out_ptr,
+        num_rows, N,
+        ps1_stride_m, ps1_stride_n, ps1_stride_g,
+        cnt_stride_m, cnt_stride_n, cnt_stride_g,
+        e_a_stride_m, e_b_stride_n,
+        F: tl.constexpr, NUM_BLOCKS: tl.constexpr, TERM_FLOOR: tl.constexpr, C_FLOOR: tl.constexpr,
+        BLOCK_SIZE: tl.constexpr,
+    ):
+        pid = tl.program_id(axis=0)
+        offs = (pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)).to(tl.int64)
+        mask = offs < num_rows
+        m_idx = offs // N
+        n_idx = offs - m_idx * N
+        pbase = m_idx * ps1_stride_m + n_idx * ps1_stride_n
+        cbase = m_idx * cnt_stride_m + n_idx * cnt_stride_n
+        abase = m_idx * e_a_stride_m
+        bbase = n_idx * e_b_stride_n
+        NEG: tl.constexpr = -100000
+        acc = tl.zeros((BLOCK_SIZE,), dtype=tl.float32)
+        for blk in range(NUM_BLOCKS):
+            acc_abs = tl.abs(acc)
+            emax = tl.where(acc_abs == 0, NEG, tl.maximum(libdevice.ilogb(acc_abs), C_FLOOR))
+            t0 = tl.zeros((BLOCK_SIZE,), dtype=tl.float64)
+            t1 = tl.zeros((BLOCK_SIZE,), dtype=tl.float64)
+            t2 = tl.zeros((BLOCK_SIZE,), dtype=tl.float64)
+            t3 = tl.zeros((BLOCK_SIZE,), dtype=tl.float64)
+            for j in tl.static_range(4):
+                g = blk * 4 + j
+                sidx = blk * 2 + j // 2
+                p = tl.load(ps1_ptr + pbase + g * ps1_stride_g, mask=mask, other=0).to(tl.float64)
+                nz = tl.load(cnt_ptr + cbase + g * cnt_stride_g, mask=mask, other=0)
+                ea = tl.load(e_a_ptr + abase + sidx, mask=mask, other=0)
+                eb = tl.load(e_b_ptr + bbase + sidx, mask=mask, other=0)
+                es = ea + eb
+                emax = tl.maximum(emax, tl.where(nz != 0, tl.maximum(es, TERM_FLOOR), NEG))
+                t = libdevice.ldexp(p, es)                 # exact in fp64
+                if j == 0:
+                    t0 = t
+                elif j == 1:
+                    t1 = t
+                elif j == 2:
+                    t2 = t
+                else:
+                    t3 = t
+            q = tl.where(emax > NEG, emax - F, 0)
+            sc = libdevice.ldexp(tl.full((BLOCK_SIZE,), 1.0, tl.float64), (-q).to(tl.int32))
+            s = (libdevice.trunc(acc.to(tl.float64) * sc) + libdevice.trunc(t0 * sc) + libdevice.trunc(t1 * sc)
+                 + libdevice.trunc(t2 * sc) + libdevice.trunc(t3 * sc))
+            v = s / sc
+            r = _to_float32_rz(v)
+            inf = tl.full((BLOCK_SIZE,), float("inf"), tl.float32)
+            acc = tl.where(tl.abs(v) >= 3.402823669209385e38, tl.where(v > 0, inf, -inf), r)   # >= 2^128 -> +-inf
+        tl.store(out_ptr + offs, acc, mask=mask)
+
+
+def stage234_fusednode_mx_rz_triton(ps1, cnt, e_a, e_b, F: int = 35, term_floor: int = -139, c_floor: int = -126,
+                                    block_size: int = 256) -> torch.Tensor:
+    """ps1 / cnt: [M,N,G] (strided views ok); e_a [M,G/2], e_b [N,G/2] int32 = ue8m0 code - 127."""
+    assert ps1.dtype == torch.float32 and ps1.shape == cnt.shape
+    m, n, g = ps1.shape
+    assert g % 4 == 0 and e_a.shape == (m, g // 2) and e_b.shape == (n, g // 2)
+    e_a, e_b = e_a.to(torch.int32).contiguous(), e_b.to(torch.int32).contiguous()
+    out = torch.empty((m * n,), device=ps1.device, dtype=torch.float32)
+    grid = (triton.cdiv(m * n, block_size),)
+    _fusednode_mx_kernel[grid](ps1, cnt, e_a, e_b, out, m * n, n,
+                               ps1.stride(0), ps1.stride(1), ps1.stride(2), cnt.stride(0), cnt.stride(1), cnt.stride(2),
+                               e_a.stride(0), e_b.stride(0), F=F, NUM_BLOCKS=g // 4, TERM_FLOOR=term_floor,
+                               C_FLOOR=c_floor, BLOCK_SIZE=block_size)
+    return out.view(m, n)
