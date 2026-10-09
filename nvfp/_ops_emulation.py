@@ -11,6 +11,7 @@ def _configured_emulation_impl() -> str:
         "beam_234fusion",
         "beam_234fusion_bmm",
         "beam_fusednode",
+        "beam_eton_fused",
         "beam_base",
     }
     if impl not in valid:
@@ -19,6 +20,13 @@ def _configured_emulation_impl() -> str:
             f"Invalid NVFP_EMULATION_IMPL={impl!r}; expected one of: {valid_csv}"
         )
     return impl
+
+
+def _eton_fused_template(w3: int, w4: int):
+    from emulation.triton_eton_fused import NVFP4_SM120, FusedTemplate
+    if w3 != w4:
+        raise ValueError("beam_eton_fused models one fused node: needs W3 == W4")
+    return NVFP4_SM120 if w3 - 1 == NVFP4_SM120.F else FusedTemplate(F=w3 - 1)
 
 
 def scaled_fp4_quant(
@@ -118,6 +126,10 @@ def cutlass_scaled_fp4_mm(
         # opt-in probed-template fused node (F = W - 1); not the default
         "beam_fusednode": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_fusednode(
             a, b, sa, sb, al, m, n, k, F=w3 - 1
+        ),
+        # opt-in ETON-Fused: same numerics as beam_fusednode in one Triton kernel (emulation/triton_eton_fused.py)
+        "beam_eton_fused": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_eton_fused(
+            a, b, sa, sb, al, m, n, k, template=_eton_fused_template(w3, w4)
         ),
     }
 

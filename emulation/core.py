@@ -659,6 +659,21 @@ class MMAEngine:
         return (out * alpha_val).to(torch.float16)
 
     @staticmethod
+    def emulation_scaled_fp4_mm_eton_fused(a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K, template=None,
+                                           out_dtype=torch.float16, b_prepared=None):
+        """
+        ETON-Fused: the probed-template NVFP4 GEMM of emulation_scaled_fp4_mm_fusednode in ONE Triton kernel
+        (tensor-core group sums + in-register fused node; see emulation/triton_eton_fused.py). template: a
+        FusedTemplate, a probe json path, or None (sm_120a NVFP4). Not the default implementation.
+        """
+        from .triton_eton_fused import FusedTemplate, NVFP4_SM120, eton_fused_mm
+
+        tmpl = NVFP4_SM120 if template is None else (
+            template if isinstance(template, FusedTemplate) else FusedTemplate.from_probe(template))
+        assert tmpl.scale_fmt == "ue4m3" and K % 64 == 0
+        return eton_fused_mm(a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K, tmpl, out_dtype, b_prepared)
+
+    @staticmethod
     def emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
         a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K,
         W_stage3=25, W_stage4=25,

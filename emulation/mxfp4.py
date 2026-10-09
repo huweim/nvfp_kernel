@@ -67,3 +67,12 @@ def emulation_scaled_mxfp4_mm_fusednode(a, b, sa, sb, alpha, M, N, K, out_dtype=
         out[m0:m1] = stage234_fusednode_mx_rz_triton(ps1.permute(1, 2, 0), cnt.permute(1, 2, 0), e_a[m0:m1], e_b, F=F)
         del ps1, cnt
     return (out * alpha.item()).to(out_dtype)
+
+
+def emulation_scaled_mxfp4_mm_eton_fused(a, b, sa, sb, alpha, M, N, K, out_dtype=torch.float16, template=None):
+    """ETON-Fused MXFP4 (one Triton kernel; see triton_eton_fused.py). template: FusedTemplate / probe json / None."""
+    from .triton_eton_fused import FusedTemplate, MXFP4_SM120, eton_fused_mm
+    tmpl = MXFP4_SM120 if template is None else (
+        template if isinstance(template, FusedTemplate) else FusedTemplate.from_probe(template))
+    assert tmpl.scale_fmt == "ue8m0" and K % 64 == 0
+    return eton_fused_mm(a, b, sa, sb, alpha, M, N, K, tmpl, out_dtype)
