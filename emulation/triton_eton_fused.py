@@ -19,6 +19,7 @@ fields outside the supported family raise instead of being silently ignored.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from typing import Optional
 
@@ -274,6 +275,17 @@ def _bucket(x: int) -> int:
     return min(1 << max(x - 1, 0).bit_length(), 16384)
 
 
+def _fixed_config(M: int):
+    """Tile config by M (best or within ~5% of best in the RTX 5090 sweep). Used unless ETON_FUSED_AUTOTUNE=1:
+    autotuning costs ~1.2 s per new (M, N, K) bucket, which would land inside end-to-end timings. The output does not
+    depend on the config (each output element is reduced by one program over K in a fixed order)."""
+    if M <= 64:
+        return dict(BM=16, BN=32, num_warps=4, num_stages=3)
+    if M <= 192:
+        return dict(BM=32, BN=32, num_warps=2, num_stages=3)
+    return dict(BM=64, BN=16, num_warps=4, num_stages=3)
+
+
 def eton_fused_mm(a_packed, b_packed, sf_a, sf_b, alpha, M, N, K, tmpl: FusedTemplate = NVFP4_SM120,
                   out_dtype=torch.float16, b_prepared=None):
     """a_packed [M,K/2], b_packed [N,K/2] packed e2m1; sf_a / sf_b: 128x4-swizzled scale bytes (the CUTLASS operand
@@ -283,12 +295,16 @@ def eton_fused_mm(a_packed, b_packed, sf_a, sf_b, alpha, M, N, K, tmpl: FusedTem
     b8, ib = prepare_operand(b_packed, sf_b, N, K, tmpl) if b_prepared is None else b_prepared
     out = torch.empty((M, N), device=a8.device, dtype=out_dtype)
     alpha = alpha.reshape(1).float().contiguous()
-    grid = lambda meta: (triton.cdiv(M, meta["BM"]), triton.cdiv(N, meta["BN"]))  # noqa: E731
-    _eton_fused_kernel[grid](
+    if os.environ.get("ETON_FUSED_AUTOTUNE", "0") == "1":
+        kern, meta = _eton_fused_kernel, {}
+    else:
+        kern, meta = _eton_fused_kernel_impl, _fixed_config(M)
+    grid = lambda m: (triton.cdiv(M, m["BM"]), triton.cdiv(N, m["BN"]))  # noqa: E731
+    kern[grid](
         a8, b8, ia, ib, out, alpha, M, N, K, _bucket(M), _bucket(N), _bucket(K),
         a8.stride(0), b8.stride(0), ia.stride(0), ib.stride(0), out.stride(0),
         F=tmpl.F, UE8M0=tmpl.scale_fmt == "ue8m0",
         TERM_FLOOR=tmpl.term_floor if tmpl.term_floor is not None else _NEG,
         C_FLOOR=tmpl.c_floor if tmpl.c_floor is not None else _NEG,
-        OVERFLOW_INF=tmpl.overflow_inf, OUT_BF16=out_dtype == torch.bfloat16)
+        OVERFLOW_INF=tmpl.overflow_inf, OUT_BF16=out_dtype == torch.bfloat16, **meta)
     return out

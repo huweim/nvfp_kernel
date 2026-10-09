@@ -4,7 +4,7 @@ import torch
 
 
 def _configured_emulation_impl() -> str:
-    impl = os.getenv("NVFP_EMULATION_IMPL", "beam_234fusion").strip().lower()
+    impl = os.getenv("NVFP_EMULATION_IMPL", "beam_eton_fused").strip().lower()
     valid = {
         "baseline",
         "beam_naive_triton",

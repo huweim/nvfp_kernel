@@ -42,7 +42,7 @@ class EmulationKernel:
         triton_fuse_stage34: bool = False,
         triton_verify_stage3: bool = False,
         triton_verify_stage4: bool = False,
-        emulation_impl: str = "beam_234fusion",
+        emulation_impl: str = "beam_eton_fused",
     ):
         """
         Initialize emulation kernel with fixed configuration.

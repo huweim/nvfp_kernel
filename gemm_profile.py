@@ -9,6 +9,7 @@ Benchmarked methods:
 4. beam_fused: Triton-fused Stage3+4 BEAM emulation via MMAEngine.emulation_scaled_fp4_mm_triton
 5. beam_234fusion: Triton-fused Stage2+3+4 with einsum Stage-1
 6. beam_234fusion_bmm: Triton-fused Stage2+3+4 with batched-matmul Stage-1 (slower than beam_234fusion at every M on RTX 5090)
+7. beam_eton_fused: ETON-Fused, one Triton kernel (default ETON since 2026-10-09)
 
 Input quantization is prepared once per K and excluded from timing.
 """
@@ -37,7 +38,8 @@ FLOAT4_E2M1_MAX = 6.0
 FLOAT8_E4M3_MAX = 448.0
 ALPHA_SCALE = FLOAT8_E4M3_MAX * FLOAT4_E2M1_MAX
 DEFAULT_KS = (512, 1024, 2048, 4096, 8192)
-DEFAULT_METHODS = ("real_nvfp4", "pseudo_fp16", "beam_base", "beam_fused", "beam_234fusion", "beam_234fusion_bmm")
+DEFAULT_METHODS = ("real_nvfp4", "pseudo_fp16", "beam_base", "beam_fused", "beam_234fusion", "beam_234fusion_bmm",
+                   "beam_eton_fused")
 
 
 def parse_args() -> argparse.Namespace:
@@ -297,6 +299,13 @@ def build_method_callables(
             triton_block_size=triton_block_size,
         )
 
+    def beam_eton_fused():
+        # ETON-Fused (default ETON since 2026-10-09): one Triton kernel, probed sm_120a template (F = W3 - 1)
+        from emulation.triton_eton_fused import FusedTemplate
+        return MMAEngine.emulation_scaled_fp4_mm_eton_fused(
+            a_fp4, b_fp4, scale_a, scale_b, alpha, m, n, k, template=FusedTemplate(F=w_stage3 - 1),
+        )
+
     def beam_base():
         return MMAEngine.emulation_scaled_fp4_mm(
             a_fp4,
@@ -323,6 +332,7 @@ def build_method_callables(
         "beam_fused": beam_fused,
         "beam_234fusion": beam_234fusion,
         "beam_234fusion_bmm": beam_234fusion_bmm,
+        "beam_eton_fused": beam_eton_fused,
     }
     if run_real:
         methods["real_nvfp4"] = real_nvfp4
@@ -496,6 +506,7 @@ def main() -> int:
             "beam_fused": "einsum",
             "beam_234fusion": "einsum",
             "beam_234fusion_bmm": "bmm",
+            "beam_eton_fused": "int8_tl_dot",
         }
 
         for method in DEFAULT_METHODS:
