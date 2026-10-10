@@ -18,6 +18,7 @@ fields outside the supported family raise instead of being silently ignored.
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 from dataclasses import dataclass
@@ -275,10 +276,21 @@ def _bucket(x: int) -> int:
     return min(1 << max(x - 1, 0).bit_length(), 16384)
 
 
+@functools.lru_cache(maxsize=None)
+def _capability(device: int):
+    return torch.cuda.get_device_capability(device)
+
+
 def _fixed_config(M: int):
     """Tile config by M (best or within ~5% of best in the RTX 5090 sweep). Used unless ETON_FUSED_AUTOTUNE=1:
     autotuning costs ~1.2 s per new (M, N, K) bucket, which would land inside end-to-end timings. The output does not
     depend on the config (each output element is reduced by one program over K in a fixed order)."""
+    if _capability(torch.cuda.current_device()) == (9, 0):
+        # H100 sweep (2026-10-10; 96 configs x 3 LLM shapes x M=1..8192, all bit-identical): best or within ~1% of
+        # best except FFN-up at M<=16 (~10%); 7-17% faster than the RTX 5090 table on sm_90 for M>=64.
+        if M <= 32:
+            return dict(BM=16, BN=32, num_warps=4, num_stages=3)
+        return dict(BM=32, BN=16, num_warps=2, num_stages=3)
     if M <= 64:
         return dict(BM=16, BN=32, num_warps=4, num_stages=3)
     if M <= 192:
