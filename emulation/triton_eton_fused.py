@@ -291,6 +291,8 @@ def eton_fused_mm(a_packed, b_packed, sf_a, sf_b, alpha, M, N, K, tmpl: FusedTem
     """a_packed [M,K/2], b_packed [N,K/2] packed e2m1; sf_a / sf_b: 128x4-swizzled scale bytes (the CUTLASS operand
     layout). b_prepared: optional cached prepare_operand(b) for a static weight. alpha: 1-element fp32 tensor."""
     assert K % 64 == 0
+    if os.environ.get("ETON_FUSED_DEBUG_DUMP"):
+        return _debug_call(a_packed, b_packed, sf_a, sf_b, alpha, M, N, K, tmpl, out_dtype, b_prepared)
     a8, ia = prepare_operand(a_packed, sf_a, M, K, tmpl)
     b8, ib = prepare_operand(b_packed, sf_b, N, K, tmpl) if b_prepared is None else b_prepared
     out = torch.empty((M, N), device=a8.device, dtype=out_dtype)
@@ -308,3 +310,50 @@ def eton_fused_mm(a_packed, b_packed, sf_a, sf_b, alpha, M, N, K, tmpl: FusedTem
         C_FLOOR=tmpl.c_floor if tmpl.c_floor is not None else _NEG,
         OVERFLOW_INF=tmpl.overflow_inf, OUT_BF16=out_dtype == torch.bfloat16, **meta)
     return out
+
+
+_DBG_B_HOST = {}
+
+
+def _debug_call(a_packed, b_packed, sf_a, sf_b, alpha, M, N, K, tmpl, out_dtype, b_prepared):
+    """ETON_FUSED_DEBUG_DUMP=<dir>: host copy of every call's operands (weights once), a synchronize around each
+    stage, and on a CUDA error a dump of the failing call (the CUDA context is dead by then, host copies survive)."""
+    import time
+    d = os.environ["ETON_FUSED_DEBUG_DUMP"]
+    torch.cuda.synchronize()                                  # errors from earlier work surface here, not below
+    key = (b_packed.data_ptr(), N, K)
+    if key not in _DBG_B_HOST:
+        _DBG_B_HOST[key] = (b_packed.cpu(), sf_b.cpu())
+    host = {"a": a_packed.cpu(), "sf_a": sf_a.cpu(), "alpha": alpha.reshape(1).float().cpu(), "b": _DBG_B_HOST[key][0],
+            "sf_b": _DBG_B_HOST[key][1], "M": M, "N": N, "K": K, "tmpl": tmpl.__dict__,
+            "strides": (a_packed.stride(), sf_a.stride(), b_packed.stride(), sf_b.stride()),
+            "shapes": (tuple(a_packed.shape), tuple(sf_a.shape), tuple(b_packed.shape), tuple(sf_b.shape))}
+    stage = "prep"
+    try:
+        t0 = time.time()
+        a8, ia = prepare_operand(a_packed, sf_a, M, K, tmpl)
+        b8, ib = prepare_operand(b_packed, sf_b, N, K, tmpl) if b_prepared is None else b_prepared
+        torch.cuda.synchronize()
+        stage = "main"
+        out = torch.empty((M, N), device=a8.device, dtype=out_dtype)
+        al = alpha.reshape(1).float().contiguous()
+        meta = _fixed_config(M)
+        _eton_fused_kernel_impl[(triton.cdiv(M, meta["BM"]), triton.cdiv(N, meta["BN"]))](
+            a8, b8, ia, ib, out, al, M, N, K, _bucket(M), _bucket(N), _bucket(K),
+            a8.stride(0), b8.stride(0), ia.stride(0), ib.stride(0), out.stride(0),
+            F=tmpl.F, UE8M0=tmpl.scale_fmt == "ue8m0",
+            TERM_FLOOR=tmpl.term_floor if tmpl.term_floor is not None else _NEG,
+            C_FLOOR=tmpl.c_floor if tmpl.c_floor is not None else _NEG,
+            OVERFLOW_INF=tmpl.overflow_inf, OUT_BF16=out_dtype == torch.bfloat16, **meta)
+        torch.cuda.synchronize()
+        dt = time.time() - t0
+        if dt > 0.2:
+            os.makedirs(d, exist_ok=True)
+            torch.save(dict(host, seconds=dt), os.path.join(d, f"slow_{M}x{N}x{K}_{int(time.time())}.pt"))
+        return out
+    except Exception as e:
+        os.makedirs(d, exist_ok=True)
+        p = os.path.join(d, f"fail_{stage}_{M}x{N}x{K}_{int(time.time())}.pt")
+        torch.save(dict(host, stage=stage, error=str(e)), p)
+        print(f"[eton_fused debug] CUDA error in stage {stage}; inputs saved to {p}", flush=True)
+        raise
