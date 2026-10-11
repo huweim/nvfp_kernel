@@ -143,6 +143,8 @@ def cutlass_scaled_fp4_mm(
 
     impl = _configured_emulation_impl()
     fn = _DISPATCH_TABLE[impl]
+    from emulation import gemm_hist
+    gemm_hist.record(m, n, k)
     # Use the probed RTX 5090 template (W3=W4=36, RZ), the same preset as EmulationKernel.for_rtx_5090.
     # Without this the MMAEngine signature defaults (W=25) would silently apply on this env-driven path.
     w3, w4 = int(os.getenv("NVFP_EMULATION_W3", "36")), int(os.getenv("NVFP_EMULATION_W4", "36"))

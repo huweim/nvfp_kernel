@@ -118,6 +118,8 @@ class EmulationKernel:
         M = a.shape[0]
         N = b.shape[0]
         K = a.shape[1] * 2  # FP4 is packed 2 values per byte
+        from . import gemm_hist
+        gemm_hist.record(M, N, K)
         
         if self.use_triton:
             if self.emulation_impl == "beam_naive_triton":
