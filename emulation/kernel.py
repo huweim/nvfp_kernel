@@ -193,6 +193,10 @@ class EmulationKernel:
                 result = MMAEngine.emulation_scaled_fp4_mm_eton_fused(
                     a, b, block_scale_a, block_scale_b, alpha, M, N, K, template=FusedTemplate(F=self.w_stage3 - 1),
                 )
+            elif self.emulation_impl == "mmasim_v2":
+                # MMA-Sim v2 reference model as the GEMM (opt-in; rebuttal E2E cost comparison)
+                from .mmasim_backend import mmasim_scaled_fp4_mm
+                result = mmasim_scaled_fp4_mm(a, b, block_scale_a, block_scale_b, alpha, M, N, K, out_dtype)
             else:
                 raise ValueError(
                     f"Unsupported emulation_impl={self.emulation_impl!r}. Expected 'beam_naive_triton', "

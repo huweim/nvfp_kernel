@@ -13,6 +13,7 @@ def _configured_emulation_impl() -> str:
         "beam_fusednode",
         "beam_eton_fused",
         "beam_base",
+        "mmasim_v2",
     }
     if impl not in valid:
         valid_csv = ", ".join(sorted(valid))
@@ -20,6 +21,11 @@ def _configured_emulation_impl() -> str:
             f"Invalid NVFP_EMULATION_IMPL={impl!r}; expected one of: {valid_csv}"
         )
     return impl
+
+
+def _mmasim(a, b, sa, sb, al, m, n, k):
+    from emulation.mmasim_backend import mmasim_scaled_fp4_mm
+    return mmasim_scaled_fp4_mm(a, b, sa, sb, al, m, n, k)
 
 
 def _eton_fused_template(w3: int, w4: int):
@@ -131,6 +137,8 @@ def cutlass_scaled_fp4_mm(
         "beam_eton_fused": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_eton_fused(
             a, b, sa, sb, al, m, n, k, template=_eton_fused_template(w3, w4)
         ),
+        # opt-in MMA-Sim v2 reference model as the GEMM (rebuttal E2E cost comparison; needs `pip install mmasim`)
+        "mmasim_v2": lambda a, b, sa, sb, al, m, n, k, w3, w4: _mmasim(a, b, sa, sb, al, m, n, k),
     }
 
     impl = _configured_emulation_impl()
