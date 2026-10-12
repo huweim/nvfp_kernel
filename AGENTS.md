@@ -1,147 +1,32 @@
-# NVFP4 MMA Emulation Framework
+# nvfp_kernel — notes for agents
 
-## Project Overview
+See `README.md` for build, implementations and switches. This file lists the rules to follow when changing code here.
 
-This project provides bit-accurate emulation of NVIDIA Blackwell NVFP4 MMA instructions, 
-with a focus on modeling precision loss during hardware reduction operations.
-
-## Architecture
-
+## Layout
 ```
-emulation/
-├── __init__.py          # Package exports
-├── config.py            # HardwareConfig, RoundStrategy
-├── core.py              # HardwareCore, MMAEngine (5-stage pipeline)
-├── strategies.py        # Rounding implementations
-├── emulator.py          # High-level MMAEmulator API
-├── utils.py             # NVFP4Utils, DataGenerator
-├── search.py            # Parameter search functionality
-└── configs/             # Hardware-specific configurations
-    └── NVFP4_OFP16_5090.json
+nvfp/ops.py            backend dispatch (NVFP_GEMM_BACKEND); _ops_real.py (CUTLASS) / _ops_emulation.py (registry)
+nvfp/_ext.py           loads the compiled scaled_fp4_ops extension
+nvfp/pseudo_quant.py   fake-quant used by QuantLinear(mode="pseudo")
+emulation/registry.py  IMPLS, DEFAULT_IMPL, HW_ACCUM_BITS, run()  <- the only implementation table
+emulation/kernel.py    EmulationKernel: input validation + registry.run
+emulation/core.py      MMAEngine entry points (beam_base, fusednode, eton_fused) + HardwareCore W-bit adders
+emulation/triton_eton_fused.py  ETON-Fused kernel, FusedTemplate (from_probe, NVFP4_SM120)
+emulation/triton_fusednode.py   staged fused-node kernels (oracle)
+emulation/mxfp4.py     ETON-MXFP4;  emulation/mmasim_backend.py  MMA-Sim v2 adapter;  gemm_hist.py  call histogram
+gemm_profile.py        Tab. IV harness (build_inputs / build_method_callables / benchmark_callable, used by
+                       ../../scripts/table4_*.py and gemm_latency_llm.py)
+tests/test_impls.py    regression gate
 ```
 
-## Key Findings
-
-### Successful Configuration for RTX 5090
-
-```json
-{
-  "w_stage3": 34,        // Intra-block (4-to-1) reduction bit width
-  "w_stage4": 28,        // Inter-block accumulation bit width
-  "stage3_rounding": "RZ",
-  "stage4_rounding": "RZ",
-  "block0_cast_rounding": "RZ",
-  "output_rounding": "RNE"
-}
-```
-
-### Critical Insights
-
-1. **Stage 3 needs HIGHER precision (W=28)** than Stage 4 (W=24)
-   - Stage 3: 4-to-1 reduction within K=64 block
-   - Stage 4: Inter-block accumulation with FP32 accumulator
-
-2. **Asymmetric truncation strategy**:
-   - Block 0: Cast to FP32 (full precision accumulator)
-   - Block 1, 2, ...: Keep W-bit precision
-   - Accumulation: `hardware_add_inter_block(FP32_acc, W_bits_new_val)`
-
-3. **Negative numbers require different parameters**:
-   - Positive-only: W3=28, W4=24 works
-   - With negatives: May need W3=28, W4=28 or higher
-
-### Why This Works
-
-The key insight is that hardware uses:
-1. **High precision for intra-block reduction** (Stage 3) because all 4 groups are reduced together
-2. **Lower precision for inter-block** (Stage 4) because the FP32 accumulator provides sufficient headroom
-
-## 5-Stage Pipeline
-
-```
-Stage 1: Intra-Group Partial Sum (Lossless FP16)
-  Input: FP4 unpacked to FP16
-  Output: [M, N, G] partial sums
-
-Stage 2: Apply Shared Scales (Lossless F32)
-  Input: FP16 partial sums
-  Output: [M, N, G] scaled partials (FP32)
-
-Stage 3: Group -> MMA-K-Block Reduction (W3-bit)
-  Input: [M, N, G] scaled partials
-  Output: [M, N, num_blocks] block sums (W-bit or FP32)
-  
-Stage 4: Inter-Block Accumulation (W4-bit)
-  Input: Block sums (Block 0=FP32, others=W-bit)
-  Output: [M, N] accumulated result (FP32)
-
-Stage 5: Final Cast (FP16)
-  Input: FP32 accumulated result
-  Output: FP16 final output
-```
-
-## Usage Examples
-
-### Basic Emulation
-
-```python
-from emulation import MMAEmulator, HardwareConfig
-
-config = HardwareConfig.from_json("emulation/configs/NVFP4_OFP16_5090.json")
-emulator = MMAEmulator(config)
-
-result = emulator.run(a_fp4, b_fp4, scale_a, scale_b, alpha)
-```
-
-### Parameter Search
-
-```python
-from emulation.search import ParameterSearch
-
-searcher = ParameterSearch(num_iterations=1000)
-results = searcher.grid_search(
-    w_stage3_range=range(25, 35),
-    w_stage4_range=range(20, 30)
-)
-
-# Get best config
-best_config = results[0].config
-```
-
-### Quick Search
-
-```python
-from emulation.search import quick_search
-
-config = quick_search()
-emulator = MMAEmulator(config)
-```
-
-## Development Notes
-
-### Context Window Management
-
-- Key parameters are documented in configs/ directory
-- This AGENTS.md file preserves critical findings
-- Code is modular to allow independent discussion of components
-
-### Testing Strategy
-
-1. **Unit tests**: Each stage independently
-2. **Integration tests**: Full pipeline with known inputs
-3. **Regression tests**: Ensure found configs remain valid
-4. **Corner cases**: Negative numbers, edge values, different K values
-
-### Future Work
-
-- [ ] Optimize chunking for very large matrices
-- [ ] Support BF16 output
-- [ ] Add support for sparse MMA
-- [ ] Implement gradient computation for training
-- [ ] Add visualization tools for error analysis
-
-## References
-
-- CUTLASS 3.8 documentation
-- NVIDIA Blackwell architecture whitepaper
-- NVFP4 format specification (E2M1)
+## Rules
+- **Interface.** `EmulationKernel(a, b, scale_a, scale_b, alpha, out_dtype)` must keep matching
+  `ops.cutlass_scaled_fp4_mm` in shapes, dtypes, padding and swizzling. See `_validate_inputs`.
+- **Adding or renaming an impl.** Change only `emulation/registry.py`. Both dispatch points (`EmulationKernel` and
+  `_ops_emulation`) and the CLIs (`--emulation-impl` choices, `gemm_profile --methods`) read it.
+- **Before committing a numerics change.** Run `python -m pytest tests/test_impls.py` on the 5090, which compares
+  against the real kernel. On other GPUs the test compares against `beam_fusednode`.
+- **Template changes.** The template comes from probes (`probe_triton/`). Never change it to make a case pass without
+  a probe that measures the new behaviour.
+- **Speed knobs.** `m_chunk_size` and the ETON-Fused tile configs must not change any result bit.
+- **Removed code.** The old variants (`beam_234fusion*`, `beam_naive_triton`, `*_profile`, `config.py`, `search.py`)
+  are at tag `hpca2027-revision-1012`.

@@ -1,43 +1,46 @@
-# nvfp_kernel
-It's the nvfp kernel extracted from vLLM ([GitHub repository](https://github.com/vllm-project/vllm)).
+# nvfp_kernel — NVFP4 GEMM: real (CUTLASS sm_120a) and bit-exact emulation (ETON)
 
-## Setup
+- **Real path.** `nvfp.ops.cutlass_scaled_fp4_mm`: the CUTLASS NVFP4 GEMM and quantization kernels, extracted from
+  [vLLM](https://github.com/vllm-project/vllm). Builds only for sm_120a (RTX 5090 / RTX PRO 6000).
+- **Emulation path.** `emulation/`: ETON, which reproduces the real GEMM bit for bit on any CUDA GPU with Triton
+  (H100, A100, …). It takes the same arguments and operand layouts (packed e2m1, 128x4-swizzled ue4m3 scales, fp32
+  alpha).
+
+## Build
 ```bash
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
-
-# Default: build real backend (also keeps emulation path usable in Python)
-python setup.py install
-
-# Explicitly build real backend (same as default)
-NVFP_BUILD_PROFILE=real python setup.py install
-
-# A100 / non-sm1xx: build emulation backend only
-NVFP_BUILD_PROFILE=emulation_only python setup.py install
+NVFP_BUILD_PROFILE=real           python setup.py install   # RTX 5090: CUTLASS kernels + emulation
+NVFP_BUILD_PROFILE=emulation_only python setup.py install   # H100 / A100: quantization helpers + emulation
 ```
 
-`QuantLinear(mode="real")` and `QuantLinear(mode="emulation")` choose path explicitly in Python.
+## Implementations (`emulation/registry.py`, the single table)
+| name | what | use |
+|---|---|---|
+| `beam_eton_fused` | ETON-Fused: one Triton kernel (int8 tensor-core group sums, exact int32-limb accumulation) | default |
+| `beam_fusednode` | same numerics, staged kernels | test oracle for ETON-Fused |
+| `beam_base` | ETON-Base: unfused PyTorch W3/W4 pipeline (Tab. IV "B.") | latency baseline; not exact on block-range / cancellation inputs |
+| `mmasim_v2` | MMA-Sim v2 reference model | comparison only; needs `pip install mmasim` |
 
-## Correctness Test
-```bash
-python example.py
+```python
+from emulation import EmulationKernel
+out = EmulationKernel()(a_fp4, b_fp4, scale_a, scale_b, alpha, torch.float16)   # == ops.cutlass_scaled_fp4_mm
 ```
-There's still a small gap between the pseudo quantization and the real quantization.
+`accum_bits` (default 36, the probed sm_120a value) sets the accumulator width for what-if studies.
 
-## Speed Test
+## Runtime switches
+- `NVFP_GEMM_BACKEND`: `auto` | `real` | `emulation`. Selects what `nvfp.ops.cutlass_scaled_fp4_mm` runs. `auto` uses
+  the real kernel when it was built.
+- `NVFP_EMULATION_IMPL`: a registry name, used by the `emulation` backend.
+- `NVFP_EMULATION_W3` / `NVFP_EMULATION_W4`: accumulator bits; they must be equal.
+- `ETON_GEMM_HIST=<prefix>`: dump an (M, N, K) call histogram per process (used for the MMA-Sim E2E estimate).
+- `ETON_FUSED_AUTOTUNE=1`: autotune ETON-Fused instead of using the fixed per-M configs.
+
+## Test and profile
 ```bash
-python speed_test.py
+python -m pytest tests/test_impls.py -q      # every impl vs real (vs beam_fusednode where there is no real kernel)
+python gemm_profile.py --m 512 --n 2048 --k-values 512,1024,2048,4096,8192 --iters 100 --warmup 20
+python gemm_profile.py ... --m-chunk-size 512   # reproduces the paper's Tab. IV ETON-Base column
 ```
-Here's the speed test result on RTX 5090. The settings can be seen in `speed_test.py`.
 
-| Size (K=N) | BF16 (ms) | FP4 (ms) | Speedup (FP4/BF16) | BF16 TFLOPS | FP4 TFLOPS |
-|------------|-----------|----------|---------------------|--------------|------------|
-| 64         | 0.013     | 0.040    | 0.34                | 2.52         | 2.52       |
-| 128        | 0.007     | 0.040    | 0.16                | 20.41        | 20.41      |
-| 256        | 0.011     | 0.039    | 0.29                | 47.70        | 47.70      |
-| 512        | 0.031     | 0.040    | 0.77                | 69.77        | 69.77      |
-| 1024       | 0.059     | 0.046    | 1.29                | 144.48       | 144.48     |
-| 2048       | 0.215     | 0.078    | 2.77                | 159.68       | 159.68     |
-| 4096       | 0.773     | 0.164    | 4.71                | 177.83       | 177.83     |
-| 8192       | 2.440     | 0.562    | 4.34                | 225.27       | 225.27     |
-
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/SubSir/nvfp_kernel)
+- **MXFP4.** `kernel_mxfp4/` holds the CUTLASS MXFP4 op; `emulation/mxfp4.py` holds ETON-MXFP4.
+- **Older implementations.** `beam_234fusion*`, `beam_naive_triton` and the parameter search are at git tag
+  `hpca2027-revision-1012`.
