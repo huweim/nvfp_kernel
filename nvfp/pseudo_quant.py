@@ -180,43 +180,6 @@ def dequantize_to_dtype(tensor_fp4, tensor_sf, global_scale, block_size=16):
     return out
 
 
-def simple_fp4_pseudo_quantize(x: torch.Tensor) -> torch.Tensor:
-    """
-    Simple pseudo-quantization that converts float/float16/bfloat16 to FP4 and back to float32.
-    This function does NOT handle scales - it's a simple quantize-dequantize operation.
-
-    Args:
-        x: Input tensor with dtype float, float16, or bfloat16. Must be a CUDA tensor
-           with at least 2 dimensions and last dimension divisible by 2.
-
-    Returns:
-        torch.Tensor: Dequantized tensor with float32 dtype, same shape as input.
-                     The tensor is quantized to FP4 and then dequantized back to float32,
-                     simulating the precision loss of FP4 quantization.
-    """
-    assert x.is_cuda, "x must be a CUDA tensor"
-    assert x.dtype in (
-        torch.float,
-        torch.float16,
-        torch.bfloat16,
-    ), f"x.dtype needs to be float, fp16 or bf16 but got {x.dtype}"
-    assert x.ndim >= 2, f"x.ndim needs to be >= 1, but got {x.ndim}"
-    assert (
-        x.shape[-1] % 2 == 0
-    ), f"last dim has to be multiple of 2, but got {x.shape[-1]}"
-
-    original_shape = x.shape
-
-    # Convert to FP4
-    x_fp4 = to_fp4(x.reshape(-1, original_shape[-1]))
-
-    # Convert back to float32 first
-    x_dequantized = unpack_fp4_bytes(x_fp4)
-
-    # Cast back to original dtype
-    return x_dequantized.reshape(original_shape)
-
-
 def nvfp4_pseudo_quantize(x: torch.Tensor) -> torch.Tensor:
     """
     NVIDIA FP4 pseudo-quantization that converts float/float16/bfloat16 to NVFP4 and back to float32.

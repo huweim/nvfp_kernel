@@ -57,32 +57,3 @@ class DataGenerator:
              return torch.abs(torch.randn(shape, device=device, dtype=dtype)) * 100.0
         else:
             raise ValueError(f"Unknown distribution type: {dist_type}")
-
-
-class DataGenerator_Abs:
-    """
-    DEBUG: 只生成正数，便于分析
-    """
-    @staticmethod
-    def get_random_tensor(shape, dist_type, device="cuda", dtype=torch.float16):
-        if dist_type == "normal":
-            return torch.abs(torch.randn(shape, device=device, dtype=dtype))
-        elif dist_type == "uniform":
-            return torch.rand(shape, device=device, dtype=dtype)  # 0 to 1, positive only
-        elif dist_type == "large":
-            return torch.abs(torch.randn(shape, device=device, dtype=dtype)) * 100.0
-        elif dist_type == "small":
-            return torch.abs(torch.randn(shape, device=device, dtype=dtype)) * 0.001
-        elif dist_type == "outliers":
-            t = torch.abs(torch.randn(shape, device=device, dtype=dtype))
-            mask = torch.rand(shape, device=device) < 0.01
-            t[mask] *= 50.0
-            return t
-        elif dist_type == "mixed_rows":
-            t = torch.abs(torch.randn(shape, device=device, dtype=dtype))
-            scale = torch.exp(torch.randn(shape[0], 1, device=device) * 2)
-            return t * scale.to(dtype)
-        elif dist_type == "abs_large":
-             return torch.abs(torch.randn(shape, device=device, dtype=dtype)) * 100.0
-        else:
-            raise ValueError(f"Unknown distribution type: {dist_type}")

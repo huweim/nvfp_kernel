@@ -1,25 +1,7 @@
-import importlib
 
 import torch
 
-
-def _load_scaled_fp4_ops(required_symbols: tuple[str, ...]):
-    try:
-        module = importlib.import_module("scaled_fp4_ops")
-    except ImportError as exc:
-        raise RuntimeError(
-            "scaled_fp4_ops extension is not available. "
-            "Build with NVFP_BUILD_PROFILE=real to enable real FP4 kernels."
-        ) from exc
-
-    missing = [name for name in required_symbols if not hasattr(module, name)]
-    if missing:
-        missing_csv = ", ".join(missing)
-        raise RuntimeError(
-            "scaled_fp4_ops is missing required real-kernel symbols: "
-            f"{missing_csv}. Rebuild with NVFP_BUILD_PROFILE=real."
-        )
-    return module
+from ._ext import _load_scaled_fp4_ops
 
 
 def scaled_fp4_quant(

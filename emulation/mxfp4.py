@@ -38,13 +38,6 @@ def mxfp4_quantize(x: torch.Tensor):
     return packed, pseudo_quant.linear_to_swizzled_128_4(sfp).contiguous()
 
 
-def mxfp4_dequant(packed, sf_swz, R, K):
-    lin = pseudo_quant.swizzled_to_linear_128_4(sf_swz, R, K // 32)
-    codes = torch.stack([packed & 0xF, packed >> 4], -1).view(R, K).long()
-    v = _E2M1.to(packed.device)[codes & 7] * torch.where(codes >= 8, -1.0, 1.0)
-    return v.double() * torch.pow(2.0, lin.double() - 127).repeat_interleave(32, 1)
-
-
 def emulation_scaled_mxfp4_mm_fusednode(a, b, sa, sb, alpha, M, N, K, out_dtype=torch.float16, F=35,
                                         m_chunk_size=256):
     from .triton_fusednode import stage234_fusednode_mx_rz_triton

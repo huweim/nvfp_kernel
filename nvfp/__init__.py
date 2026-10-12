@@ -9,7 +9,6 @@ from .ops import (
 from .pseudo_quant import (
     nvfp4_pseudo_quantize,
     pytorch_nvfp4_quantize,
-    simple_fp4_pseudo_quantize,
 )
 
 if TYPE_CHECKING:
@@ -23,7 +22,6 @@ __all__ = [
     "reciprocal_approximate_ftz_tensor",
     "pytorch_nvfp4_quantize",
     "nvfp4_pseudo_quantize",
-    "simple_fp4_pseudo_quantize",
 ]
 
 

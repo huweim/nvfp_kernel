@@ -3,13 +3,13 @@
 GEMM latency profiler for NVFP4 case-study tables.
 
 Benchmarked methods:
-1. real_nvfp4: native FP4 GEMM via ops.cutlass_scaled_fp4_mm (RTX 5090 only)
-2. pseudo_fp16: regular FP16 GEMM via torch.nn.functional.linear
-3. beam_base: unfused BEAM emulation with explicit CUDA-core stage-1
-4. beam_fused: Triton-fused Stage3+4 BEAM emulation via MMAEngine.emulation_scaled_fp4_mm_triton
-5. beam_234fusion: Triton-fused Stage2+3+4 with einsum Stage-1
-6. beam_234fusion_bmm: Triton-fused Stage2+3+4 with batched-matmul Stage-1 (slower than beam_234fusion at every M on RTX 5090)
-7. beam_eton_fused: ETON-Fused, one Triton kernel (default ETON since 2026-10-09)
+  real_nvfp4       native FP4 GEMM via ops.cutlass_scaled_fp4_mm (RTX 5090 only)       = Tab. IV "Nat."
+  pseudo_fp16      regular FP16 GEMM via torch.nn.functional.linear                    = Tab. IV "Ps."
+  beam_eton_fused  ETON-Fused (default ETON)                                            = Tab. IV "ETON"
+  beam_base        ETON-Base, the unfused staged pipeline                               = Tab. IV "B."
+  beam_fusednode   staged fused node (same numerics as ETON-Fused; not in the paper)
+Emulation methods come from emulation.registry. The pre-revision variants (beam_234fusion, beam_234fusion_bmm,
+beam_fused) are at git tag hpca2027-revision-1012.
 
 Input quantization is prepared once per K and excluded from timing.
 """
@@ -38,8 +38,7 @@ FLOAT4_E2M1_MAX = 6.0
 FLOAT8_E4M3_MAX = 448.0
 ALPHA_SCALE = FLOAT8_E4M3_MAX * FLOAT4_E2M1_MAX
 DEFAULT_KS = (512, 1024, 2048, 4096, 8192)
-DEFAULT_METHODS = ("real_nvfp4", "pseudo_fp16", "beam_base", "beam_fused", "beam_234fusion", "beam_234fusion_bmm",
-                   "beam_eton_fused")
+DEFAULT_METHODS = ("real_nvfp4", "pseudo_fp16", "beam_eton_fused", "beam_base")
 
 
 def parse_args() -> argparse.Namespace:
@@ -71,20 +70,13 @@ def parse_args() -> argparse.Namespace:
         choices=["auto", "on", "off"],
         help="Whether to benchmark native real NVFP4 GEMM",
     )
-    parser.add_argument("--w-stage3", type=int, default=36, help="BEAM stage-3 accumulation bits")
-    parser.add_argument("--w-stage4", type=int, default=36, help="BEAM stage-4 accumulation bits")
-    parser.add_argument("--m-chunk-size", type=int, default=128, help="BEAM M chunk size")
-    parser.add_argument("--triton-block-size", type=int, default=256, help="Triton block size")
-    parser.add_argument(
-        "--disable-stage34-fusion",
-        action="store_true",
-        help="Disable fused Triton stage3+4 path",
-    )
-    parser.add_argument(
-        "--disable-stage3-triton",
-        action="store_true",
-        help="Disable Triton stage-3 reduction",
-    )
+    parser.add_argument("--w-stage3", "--accum-bits", dest="w_stage3", type=int, default=36,
+                        help="inter-group accumulator significand bits (36 = probed sm_120a)")
+    parser.add_argument("--w-stage4", type=int, default=None, help="deprecated alias; must equal --w-stage3")
+    parser.add_argument("--m-chunk-size", type=int, default=128,
+                        help="beam_base rows per chunk (speed only; the paper's Tab. IV B. column used 512)")
+    parser.add_argument("--methods", type=str, default=",".join(DEFAULT_METHODS),
+                        help="comma list from real_nvfp4, pseudo_fp16 and the emulation.registry impls")
     parser.add_argument("--device", type=str, default="cuda", help="CUDA device")
     parser.add_argument("--device-label", type=str, default=None, help="Optional short label for output naming")
     parser.add_argument(
@@ -231,109 +223,30 @@ def build_method_callables(
     k: int,
     out_dtype: torch.dtype,
     run_real: bool,
-    w_stage3: int,
-    w_stage4: int,
-    m_chunk_size: int,
-    triton_block_size: int,
-    use_stage3_triton: bool,
-    fuse_stage34: bool,
+    w_stage3: int = 36,
+    m_chunk_size: int = 128,
+    **_legacy,     # w_stage4 / triton_* of the removed variants: accepted and ignored
 ):
-    a_dense = prepared["a_dense"]
-    b_dense = prepared["b_dense"]
-    a_fp4 = prepared["a_fp4"]
-    b_fp4 = prepared["b_fp4"]
-    scale_a = prepared["scale_a"]
-    scale_b = prepared["scale_b"]
-    alpha = prepared["alpha"]
+    """{method name: zero-arg callable} for one prepared (M, N, K) problem; emulation methods = registry.IMPLS."""
+    from emulation import registry
+
+    a_dense, b_dense = prepared["a_dense"], prepared["b_dense"]
+    a_fp4, b_fp4 = prepared["a_fp4"], prepared["b_fp4"]
+    scale_a, scale_b, alpha = prepared["scale_a"], prepared["scale_b"], prepared["alpha"]
 
     def pseudo_fp16():
         return F.linear(a_dense, b_dense)
-
-    def beam_fused():
-        return MMAEngine.emulation_scaled_fp4_mm_triton(
-            a_fp4,
-            b_fp4,
-            scale_a,
-            scale_b,
-            alpha,
-            m,
-            n,
-            k,
-            W_stage3=w_stage3,
-            W_stage4=w_stage4,
-            m_chunk_size=m_chunk_size,
-            triton_block_size=triton_block_size,
-            triton_use_stage3=use_stage3_triton,
-            triton_fuse_stage34=fuse_stage34,
-        )
-
-    def beam_234fusion():
-        return MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused(
-            a_fp4,
-            b_fp4,
-            scale_a,
-            scale_b,
-            alpha,
-            m,
-            n,
-            k,
-            W_stage3=w_stage3,
-            W_stage4=w_stage4,
-            m_chunk_size=m_chunk_size,
-            triton_block_size=triton_block_size,
-        )
-
-    def beam_234fusion_bmm():
-        return MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
-            a_fp4,
-            b_fp4,
-            scale_a,
-            scale_b,
-            alpha,
-            m,
-            n,
-            k,
-            W_stage3=w_stage3,
-            W_stage4=w_stage4,
-            m_chunk_size=m_chunk_size,
-            triton_block_size=triton_block_size,
-        )
-
-    def beam_eton_fused():
-        # ETON-Fused (default ETON since 2026-10-09): one Triton kernel, probed sm_120a template (F = W3 - 1)
-        from emulation.triton_eton_fused import FusedTemplate
-        return MMAEngine.emulation_scaled_fp4_mm_eton_fused(
-            a_fp4, b_fp4, scale_a, scale_b, alpha, m, n, k, template=FusedTemplate(F=w_stage3 - 1),
-        )
-
-    def beam_base():
-        return MMAEngine.emulation_scaled_fp4_mm(
-            a_fp4,
-            b_fp4,
-            scale_a,
-            scale_b,
-            alpha,
-            m,
-            n,
-            k,
-            W_stage3=w_stage3,
-            W_stage4=w_stage4,
-            m_chunk_size=m_chunk_size,
-            stage1_impl="cuda_core",
-        )
 
     def real_nvfp4():
         with nvfp_backend("real"):
             return ops.cutlass_scaled_fp4_mm(a_fp4, b_fp4, scale_a, scale_b, alpha, out_dtype)
 
-    methods = {
-        "pseudo_fp16": pseudo_fp16,
-        "beam_base": beam_base,
-        "beam_fused": beam_fused,
-        "beam_234fusion": beam_234fusion,
-        "beam_234fusion_bmm": beam_234fusion_bmm,
-        "beam_eton_fused": beam_eton_fused,
-    }
+    def emu(impl):
+        return lambda: registry.run(impl, a_fp4, b_fp4, scale_a, scale_b, alpha, m, n, k, accum_bits=w_stage3,
+                                    out_dtype=out_dtype, m_chunk_size=m_chunk_size)
+
+    methods = {"pseudo_fp16": pseudo_fp16}
+    methods.update({impl: emu(impl) for impl in registry.IMPLS})
     if run_real:
         methods["real_nvfp4"] = real_nvfp4
     return methods
@@ -406,13 +319,8 @@ def write_csv(path: Path, rows: list[dict]) -> None:
         "dist_b",
         "quant_backend",
         "run_real_mode",
-        "stage1_impl",
-        "w_stage3",
-        "w_stage4",
+        "accum_bits",
         "m_chunk_size",
-        "triton_block_size",
-        "triton_use_stage3",
-        "triton_fuse_stage34",
     ]
     with path.open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -455,14 +363,11 @@ def main() -> int:
     print(f"M={args.m}, N={args.n}, K={k_values}")
     print(f"dtype={torch_dtype_name}, dist_a={args.dist_a}, dist_b={args.dist_b}")
     print(f"iters={args.iters}, warmup={args.warmup}")
-    print("methods=" + ", ".join(DEFAULT_METHODS))
-    print(
-        "beam_config="
-        f"W3={args.w_stage3}, W4={args.w_stage4}, m_chunk_size={args.m_chunk_size}, "
-        f"triton_block_size={args.triton_block_size}, "
-        f"stage3_triton={not args.disable_stage3_triton}, "
-        f"fuse_stage34={not args.disable_stage34_fusion}"
-    )
+    methods_requested = [x for x in args.methods.split(",") if x]
+    if args.w_stage4 is not None and args.w_stage4 != args.w_stage3:
+        raise ValueError("--w-stage4 must equal --w-stage3 (one accumulator width)")
+    print("methods=" + ", ".join(methods_requested))
+    print(f"accum_bits={args.w_stage3}")
     print(f"run_real={run_real} (requested={args.run_real}, real_available={real_available})")
     print("=" * 108)
 
@@ -493,23 +398,9 @@ def main() -> int:
             out_dtype=dtype,
             run_real=run_real,
             w_stage3=args.w_stage3,
-            w_stage4=args.w_stage4,
             m_chunk_size=args.m_chunk_size,
-            triton_block_size=args.triton_block_size,
-            use_stage3_triton=not args.disable_stage3_triton,
-            fuse_stage34=not args.disable_stage34_fusion,
         )
-        stage1_impl_map = {
-            "real_nvfp4": None,
-            "pseudo_fp16": None,
-            "beam_base": "cuda_core",
-            "beam_fused": "einsum",
-            "beam_234fusion": "einsum",
-            "beam_234fusion_bmm": "bmm",
-            "beam_eton_fused": "int8_tl_dot",
-        }
-
-        for method in DEFAULT_METHODS:
+        for method in methods_requested:
             row = {
                 "device_label": device_label,
                 "device_name": device_name,
@@ -535,13 +426,8 @@ def main() -> int:
                 "dist_b": args.dist_b,
                 "quant_backend": prepared["quant_backend"],
                 "run_real_mode": args.run_real,
-                "stage1_impl": stage1_impl_map[method],
-                "w_stage3": args.w_stage3,
-                "w_stage4": args.w_stage4,
+                "accum_bits": args.w_stage3,
                 "m_chunk_size": args.m_chunk_size,
-                "triton_block_size": args.triton_block_size,
-                "triton_use_stage3": not args.disable_stage3_triton,
-                "triton_fuse_stage34": not args.disable_stage34_fusion,
             }
 
             if method not in methods:
@@ -603,13 +489,8 @@ def main() -> int:
                             "run_real": run_real,
                             "run_real_mode": args.run_real,
                             "real_available": real_available,
-                            "methods": list(DEFAULT_METHODS),
-                            "w_stage3": args.w_stage3,
-                            "w_stage4": args.w_stage4,
-                            "m_chunk_size": args.m_chunk_size,
-                            "triton_block_size": args.triton_block_size,
-                            "triton_use_stage3": not args.disable_stage3_triton,
-                            "triton_fuse_stage34": not args.disable_stage34_fusion,
+                            "methods": methods_requested,
+                            "accum_bits": args.w_stage3,
                             "seed": args.seed,
                         },
                         "rows": all_rows,

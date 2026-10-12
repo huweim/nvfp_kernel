@@ -1,56 +1,17 @@
 """
-Core emulation classes: HardwareCore and MMAEngine
-Fixed rounding strategy implementation
-"""
-import time
+NVFP4 GEMM emulation engines.
 
+  MMAEngine.emulation_scaled_fp4_mm_eton_fused   ETON-Fused, one Triton kernel (default; impl `beam_eton_fused`)
+  MMAEngine.emulation_scaled_fp4_mm_fusednode    the same numerics, staged (impl `beam_fusednode`; test oracle)
+  MMAEngine.emulation_scaled_fp4_mm              ETON-Base: the unfused staged PyTorch pipeline (impl `beam_base`,
+                                                 the paper's Tab. IV "B." column; two-step W3/W4 model)
+Implementations are selected through emulation/registry.py. Older variants (beam_234fusion, its bmm stage 1,
+beam_naive_triton) are at git tag hpca2027-revision-1012.
+"""
 import torch
 import nvfp.pseudo_quant as pseudo_quant
 
 from .rounding import RoundStrategy
-
-
-def _init_profile_dict(enabled: bool):
-    if not enabled:
-        return None
-    return {
-        "preprocess_b_ms": 0.0,
-        "preprocess_a_ms": 0.0,
-        "stage1_ms": 0.0,
-        "stage2_ms": 0.0,
-        "stage3_ms": 0.0,
-        "stage4_ms": 0.0,
-        "concat_ms": 0.0,
-        "stage5_ms": 0.0,
-    }
-
-
-def _profile_stage_start(profile):
-    if profile is None:
-        return None
-    torch.cuda.synchronize()
-    return time.perf_counter()
-
-
-def _profile_stage_end(profile, key: str, t0):
-    if profile is None:
-        return
-    torch.cuda.synchronize()
-    profile[key] += (time.perf_counter() - t0) * 1000.0
-
-
-def _assert_bit_exact_equal(ref: torch.Tensor, got: torch.Tensor, where: str):
-    diff = (ref.float() - got.float()).abs()
-    equal_mask = (ref == got)
-    both_nan = ref.isnan() & got.isnan()
-    valid_mask = equal_mask | both_nan
-    diff[valid_mask] = 0.0
-    diff[diff.isnan()] = float("inf")
-    mismatch_count = int((diff != 0).sum().item())
-    if mismatch_count != 0:
-        raise RuntimeError(
-            f"{where} mismatch: mismatch_count={mismatch_count}, max_diff={float(diff.max().item())}"
-        )
 
 
 class HardwareCore:
@@ -184,442 +145,57 @@ class HardwareCore:
             # Keep as W-bit precision (intermediate for Stage 4)
             return summed_f64
 
-    @staticmethod
-    def hardware_reduction_4to1_grouped(v_grouped, W=25, output_fp32=True, rounding=RoundStrategy.RZ):
-        """
-        Vectorized Stage 3 reduction.
-
-        Args:
-            v_grouped: Tensor with shape [..., 4]
-        Returns:
-            Reduced tensor with shape [...]
-        """
-        assert v_grouped.shape[-1] == 4, "Last dimension must be 4 for 4-to-1 reduction"
-
-        max_val = torch.max(v_grouped.abs(), dim=-1)[0]
-        _, max_exp = torch.frexp(max_val)
-        scale = 2.0**(W - max_exp)
-
-        v_aligned_sum = torch.trunc(v_grouped.double() * scale.unsqueeze(-1)).sum(dim=-1)
-        summed_f64 = v_aligned_sum / scale
-
-        if output_fp32:
-            return HardwareCore.to_float32_with_rounding(summed_f64, rounding)
-        else:
-            return summed_f64
-
 
 class MMAEngine:
-    """整合 MMA 仿真流程"""
-    
-    @staticmethod
-    def stage1_inner_mma_fp16_einsum(val_a, val_b):
-        M, K = val_a.shape
-        N, _ = val_b.shape
-        K_groups = K // 16
-        a_grouped = val_a.view(M, K_groups, 16).to(torch.float16)
-        b_grouped = val_b.view(N, K_groups, 16).to(torch.float16)
-        partial_sum1 = torch.einsum('mgk,ngk->mgn', a_grouped, b_grouped).to(torch.float16)
-        return partial_sum1.permute(0, 2, 1)
-
-    @staticmethod
-    def stage1_inner_mma_fp16_bmm(val_a, val_b):
-        """
-        Batched GEMM Stage-1 path.
-
-        This maps each K=16 group to a batched matmul and is a better match for
-        tensor-core-friendly library kernels than einsum on some runtimes.
-        """
-        M, K = val_a.shape
-        N, _ = val_b.shape
-        K_groups = K // 16
-        a_grouped = val_a.view(M, K_groups, 16).permute(1, 0, 2).contiguous().to(torch.float16)
-        b_grouped = val_b.view(N, K_groups, 16).permute(1, 2, 0).contiguous().to(torch.float16)
-        partial_sum1 = torch.bmm(a_grouped, b_grouped).to(torch.float16)
-        return partial_sum1.permute(1, 2, 0).contiguous()
+    """NVFP4 GEMM emulation (all entry points take the CUTLASS operand layout: packed e2m1 + swizzled ue4m3)."""
 
     @staticmethod
     def stage1_inner_mma_fp16_cuda_core(val_a, val_b):
-        """
-        Explicit SIMT/CUDA-core stage-1 reference.
-
-        This avoids GEMM-style contractions by accumulating the 16-lane group
-        with broadcasted elementwise multiply-adds. It is intentionally slower
-        than the mapped higher-throughput path and serves as the naive baseline.
-        """
+        """Stage 1 of ETON-Base: 16-element group sums with broadcast multiply-adds on CUDA cores (fp16)."""
         M, K = val_a.shape
         N, _ = val_b.shape
         K_groups = K // 16
         a_grouped = val_a.view(M, K_groups, 16).to(torch.float16)
         b_grouped = val_b.view(N, K_groups, 16).to(torch.float16)
-
         partial_sum1 = torch.zeros((M, N, K_groups), device=val_a.device, dtype=torch.float16)
         for lane in range(16):
             partial_sum1.add_(a_grouped[:, None, :, lane] * b_grouped[None, :, :, lane])
         return partial_sum1
 
     @staticmethod
-    def stage1_inner_mma_fp16(val_a, val_b, impl="einsum"):
-        if impl == "einsum":
-            return MMAEngine.stage1_inner_mma_fp16_einsum(val_a, val_b)
-        if impl == "bmm":
-            return MMAEngine.stage1_inner_mma_fp16_bmm(val_a, val_b)
-        if impl == "cuda_core":
-            return MMAEngine.stage1_inner_mma_fp16_cuda_core(val_a, val_b)
-        raise ValueError(f"Unsupported stage1_impl={impl!r}. Expected 'einsum', 'bmm', or 'cuda_core'.")
-
-    @staticmethod
     def emulation_scaled_fp4_mm(
-        a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K, 
-        W_stage3=25, W_stage4=25,
+        a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K,
+        W_stage3=36, W_stage4=36,
         stage3_rounding=RoundStrategy.RZ,
         stage4_rounding=RoundStrategy.RZ,
         m_chunk_size=128,
-        stage1_impl="einsum",
-        return_profile=False,
     ):
-        """NVFP4 MMA Accuracy Emulation with M-dimension chunking to avoid OOM"""
+        """ETON-Base: stage 1 group sums (CUDA cores) -> scales -> W3-bit 4:1 reduction -> W4-bit sequential
+        accumulation -> fp16(alpha * acc), chunked over M to bound memory."""
         from .utils import NVFP4Utils
 
-        assert K % 16 == 0, "K must be multiple of 16 (group size)"
-        assert (K // 16) % 4 == 0, "G must be multiple of 4 (mma.k64 blocks)"
-
+        assert K % 64 == 0, "K must be a multiple of 64 (one mma.k64 per 4 groups)"
         G = K // 16
         num_4_groups = G // 4
-        profile = _init_profile_dict(return_profile)
-        
-        t0 = _profile_stage_start(profile)
-        val_b_fp16 = NVFP4Utils.unpack_nvfp4_to_fp16(b_fp4, (N, K))
+        val_b = NVFP4Utils.unpack_nvfp4_to_fp16(b_fp4, (N, K))
         s_b = pseudo_quant.swizzled_to_linear_128_4(scale_b, N, G).to(torch.float32)
-        _profile_stage_end(profile, "preprocess_b_ms", t0)
-        
-        t0 = _profile_stage_start(profile)
         s_a_all = pseudo_quant.swizzled_to_linear_128_4(scale_a, M, G).to(torch.float32)
-        val_a_fp16_all = NVFP4Utils.unpack_nvfp4_to_fp16(a_fp4, (M, K))
-        _profile_stage_end(profile, "preprocess_a_ms", t0)
-        
-        summed_results_list = []
-        
-        for m_start in range(0, M, m_chunk_size):
-            m_end = min(m_start + m_chunk_size, M)
-            curr_chunk_size = m_end - m_start
-            
-            val_a_chunk = val_a_fp16_all[m_start:m_end, :]
-            s_a_chunk = s_a_all[m_start:m_end, :]
-            
-            t0 = _profile_stage_start(profile)
-            ps1_chunk = MMAEngine.stage1_inner_mma_fp16(val_a_chunk, val_b_fp16, impl=stage1_impl)
-            _profile_stage_end(profile, "stage1_ms", t0)
-            
-            t0 = _profile_stage_start(profile)
-            combined_scales_chunk = s_a_chunk.unsqueeze(1) * s_b.unsqueeze(0)
-            scaled_partials_chunk = ps1_chunk.float() * combined_scales_chunk
-            _profile_stage_end(profile, "stage2_ms", t0)
-            
-            t0 = _profile_stage_start(profile)
-            scaled_partials_4grouped = scaled_partials_chunk.view(curr_chunk_size, N, num_4_groups, 4)
-            v_list = [scaled_partials_4grouped[..., i] for i in range(4)]
-            
+        val_a_all = NVFP4Utils.unpack_nvfp4_to_fp16(a_fp4, (M, K))
+        chunks = []
+        for m0 in range(0, M, m_chunk_size):
+            m1 = min(m0 + m_chunk_size, M)
+            ps1 = MMAEngine.stage1_inner_mma_fp16_cuda_core(val_a_all[m0:m1], val_b)
+            scaled = ps1.float() * (s_a_all[m0:m1].unsqueeze(1) * s_b.unsqueeze(0))
+            v_list = [scaled.view(m1 - m0, N, num_4_groups, 4)[..., i] for i in range(4)]
+            summed = HardwareCore.hardware_reduction_4to1(
+                v_list, W=W_stage3, output_fp32=(num_4_groups == 1), rounding=stage3_rounding)
             if num_4_groups == 1:
-                summed_groups = HardwareCore.hardware_reduction_4to1(
-                    v_list, W=W_stage3, output_fp32=True, rounding=stage3_rounding
-                )
+                chunks.append(summed.squeeze(-1))
             else:
-                summed_groups = HardwareCore.hardware_reduction_4to1(
-                    v_list, W=W_stage3, output_fp32=False, rounding=stage3_rounding
-                )
-            _profile_stage_end(profile, "stage3_ms", t0)
-            
-            t0 = _profile_stage_start(profile)
-            if num_4_groups == 1:
-                summed_chunk = summed_groups.squeeze(-1)
-            else:
-                summed_chunk = HardwareCore.inter_block_accumulate_sequential(
-                    summed_groups=summed_groups,
-                    W_stage4=W_stage4,
-                    stage4_rounding=stage4_rounding,
-                )
-            _profile_stage_end(profile, "stage4_ms", t0)
-            
-            summed_results_list.append(summed_chunk)
-            del ps1_chunk, combined_scales_chunk, scaled_partials_chunk, scaled_partials_4grouped, v_list
-            del summed_groups
-        
-        t0 = _profile_stage_start(profile)
-        summed_result = torch.cat(summed_results_list, dim=0)
-        _profile_stage_end(profile, "concat_ms", t0)
-        
-        del val_a_fp16_all, val_b_fp16, s_a_all, s_b
-        
-        t0 = _profile_stage_start(profile)
-        alpha_val = alpha_tensor.item()
-        final = (summed_result * alpha_val).to(torch.float16)
-        _profile_stage_end(profile, "stage5_ms", t0)
-
-        if return_profile:
-            profile["total_profiled_ms"] = sum(profile.values())
-            return final, profile
-        return final
-
-    @staticmethod
-    def emulation_scaled_fp4_mm_triton(
-        a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K,
-        W_stage3=25, W_stage4=25,
-        stage3_rounding=RoundStrategy.RZ,
-        stage4_rounding=RoundStrategy.RZ,
-        m_chunk_size=128,
-        stage1_impl="einsum",
-        triton_block_size=256,
-        triton_use_stage3=True,
-        triton_fuse_stage34=False,
-        verify_stage3=False,
-        verify_stage4=False,
-        return_profile=False,
-    ):
-        """
-        Triton-accelerated variant.
-
-        Current scope:
-        - Stage 1/2: optimized PyTorch path
-        - Stage 3: optional Triton kernel
-        - Stage 4: Triton kernel for RZ sequential accumulation
-        - Optional Stage3+4 fused Triton path
-        """
-        from .utils import NVFP4Utils
-        from .triton_stage4 import TRITON_STAGE4_AVAILABLE, stage4_accumulate_rz_triton
-        from .triton_stage3 import (
-            TRITON_STAGE3_AVAILABLE,
-            stage3_reduce_4to1_rz_triton,
-            stage34_fused_rz_triton,
-        )
-
-        use_stage3_triton = triton_use_stage3 and (stage3_rounding == RoundStrategy.RZ)
-        use_stage34_fused_triton = triton_fuse_stage34 and (stage3_rounding == RoundStrategy.RZ) and (
-            stage4_rounding == RoundStrategy.RZ
-        )
-
-        if use_stage3_triton and not TRITON_STAGE3_AVAILABLE:
-            raise RuntimeError("Triton stage3 is unavailable in current environment.")
-        if use_stage34_fused_triton and not TRITON_STAGE3_AVAILABLE:
-            raise RuntimeError("Triton stage3 is unavailable for stage3+4 fusion.")
-        if (not use_stage34_fused_triton) and stage4_rounding == RoundStrategy.RZ and not TRITON_STAGE4_AVAILABLE:
-            raise RuntimeError("Triton stage4 is unavailable in current environment.")
-
-        assert K % 16 == 0, "K must be multiple of 16 (group size)"
-        assert (K // 16) % 4 == 0, "G must be multiple of 4 (mma.k64 blocks)"
-
-        G = K // 16
-        num_4_groups = G // 4
-        profile = _init_profile_dict(return_profile)
-
-        t0 = _profile_stage_start(profile)
-        val_b_fp16 = NVFP4Utils.unpack_nvfp4_to_fp16(b_fp4, (N, K))
-        s_b = pseudo_quant.swizzled_to_linear_128_4(scale_b, N, G).to(torch.float32)
-        s_b_4 = s_b.view(1, N, num_4_groups, 4)
-        _profile_stage_end(profile, "preprocess_b_ms", t0)
-
-        t0 = _profile_stage_start(profile)
-        s_a_all = pseudo_quant.swizzled_to_linear_128_4(scale_a, M, G).to(torch.float32)
-        val_a_fp16_all = NVFP4Utils.unpack_nvfp4_to_fp16(a_fp4, (M, K))
-        _profile_stage_end(profile, "preprocess_a_ms", t0)
-
-        summed_result = torch.empty((M, N), device=val_a_fp16_all.device, dtype=torch.float32)
-
-        for m_start in range(0, M, m_chunk_size):
-            m_end = min(m_start + m_chunk_size, M)
-            curr_chunk_size = m_end - m_start
-
-            val_a_chunk = val_a_fp16_all[m_start:m_end, :]
-            s_a_chunk = s_a_all[m_start:m_end, :]
-
-            t0 = _profile_stage_start(profile)
-            ps1_chunk = MMAEngine.stage1_inner_mma_fp16(val_a_chunk, val_b_fp16, impl=stage1_impl)
-            _profile_stage_end(profile, "stage1_ms", t0)
-
-            t0 = _profile_stage_start(profile)
-            ps1_4 = ps1_chunk.view(curr_chunk_size, N, num_4_groups, 4).to(torch.float32)
-            s_a_4 = s_a_chunk.view(curr_chunk_size, 1, num_4_groups, 4)
-            scaled_partials_4 = ps1_4
-            scaled_partials_4.mul_(s_a_4)
-            scaled_partials_4.mul_(s_b_4)
-            _profile_stage_end(profile, "stage2_ms", t0)
-
-            if num_4_groups > 1 and use_stage34_fused_triton:
-                t0 = _profile_stage_start(profile)
-                summed_chunk = stage34_fused_rz_triton(
-                    scaled_partials_4=scaled_partials_4,
-                    w_stage3=W_stage3,
-                    w_stage4=W_stage4,
-                    block_size=triton_block_size,
-                )
-                if verify_stage4:
-                    ref_groups = HardwareCore.hardware_reduction_4to1_grouped(
-                        scaled_partials_4, W=W_stage3, output_fp32=False, rounding=stage3_rounding
-                    )
-                    ref_chunk = HardwareCore.inter_block_accumulate_sequential(
-                        summed_groups=ref_groups,
-                        W_stage4=W_stage4,
-                        stage4_rounding=stage4_rounding,
-                    )
-                    _assert_bit_exact_equal(ref_chunk, summed_chunk, where="stage34_fused_triton")
-                _profile_stage_end(profile, "stage3_ms", t0)
-                # Stage4 is fused into stage3 timer for this mode.
-                summed_result[m_start:m_end, :] = summed_chunk
-                continue
-
-            t0 = _profile_stage_start(profile)
-            if num_4_groups == 1:
-                summed_groups = HardwareCore.hardware_reduction_4to1_grouped(
-                    scaled_partials_4, W=W_stage3, output_fp32=True, rounding=stage3_rounding
-                )
-            elif use_stage3_triton:
-                summed_groups = stage3_reduce_4to1_rz_triton(
-                    scaled_partials_4=scaled_partials_4,
-                    w_stage3=W_stage3,
-                    block_size=triton_block_size,
-                )
-                if verify_stage3:
-                    ref_groups = HardwareCore.hardware_reduction_4to1_grouped(
-                        scaled_partials_4, W=W_stage3, output_fp32=False, rounding=stage3_rounding
-                    )
-                    _assert_bit_exact_equal(ref_groups, summed_groups, where="stage3_triton")
-            else:
-                summed_groups = HardwareCore.hardware_reduction_4to1_grouped(
-                    scaled_partials_4, W=W_stage3, output_fp32=False, rounding=stage3_rounding
-                )
-            _profile_stage_end(profile, "stage3_ms", t0)
-
-            t0 = _profile_stage_start(profile)
-            if num_4_groups == 1:
-                summed_chunk = summed_groups.squeeze(-1)
-            elif stage4_rounding == RoundStrategy.RZ:
-                summed_chunk = stage4_accumulate_rz_triton(
-                    summed_groups=summed_groups,
-                    w_stage4=W_stage4,
-                    block_size=triton_block_size,
-                )
-                if verify_stage4:
-                    ref_chunk = HardwareCore.inter_block_accumulate_sequential(
-                        summed_groups=summed_groups,
-                        W_stage4=W_stage4,
-                        stage4_rounding=stage4_rounding,
-                    )
-                    _assert_bit_exact_equal(ref_chunk, summed_chunk, where="stage4_triton")
-            else:
-                summed_chunk = HardwareCore.inter_block_accumulate_sequential(
-                    summed_groups=summed_groups,
-                    W_stage4=W_stage4,
-                    stage4_rounding=stage4_rounding,
-                )
-            _profile_stage_end(profile, "stage4_ms", t0)
-
-            summed_result[m_start:m_end, :] = summed_chunk
-
-        t0 = _profile_stage_start(profile)
-        alpha_val = alpha_tensor.item()
-        final = (summed_result * alpha_val).to(torch.float16)
-        _profile_stage_end(profile, "stage5_ms", t0)
-
-        if return_profile:
-            profile["total_profiled_ms"] = sum(profile.values())
-            return final, profile
-        return final
-
-    @staticmethod
-    def emulation_scaled_fp4_mm_triton_stage234_fused(
-        a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K,
-        W_stage3=25, W_stage4=25,
-        stage3_rounding=RoundStrategy.RZ,
-        stage4_rounding=RoundStrategy.RZ,
-        m_chunk_size=128,
-        stage1_impl="einsum",
-        triton_block_size=256,
-        return_profile=False,
-    ):
-        """
-        Experimental Triton path that fuses Stage2+3+4 directly from Stage1 output.
-
-        This avoids materializing the large scaled_partials_4 tensor and is kept as
-        a separate function for safe benchmarking against the existing BEAM path.
-        """
-        if stage3_rounding != RoundStrategy.RZ or stage4_rounding != RoundStrategy.RZ:
-            return MMAEngine.emulation_scaled_fp4_mm_triton(
-                a_fp4=a_fp4,
-                b_fp4=b_fp4,
-                scale_a=scale_a,
-                scale_b=scale_b,
-                alpha_tensor=alpha_tensor,
-                M=M,
-                N=N,
-                K=K,
-                W_stage3=W_stage3,
-                W_stage4=W_stage4,
-                stage3_rounding=stage3_rounding,
-                stage4_rounding=stage4_rounding,
-                m_chunk_size=m_chunk_size,
-                stage1_impl=stage1_impl,
-                triton_block_size=triton_block_size,
-                triton_use_stage3=True,
-                triton_fuse_stage34=True,
-                return_profile=return_profile,
-            )
-
-        from .utils import NVFP4Utils
-        from .triton_stage3 import TRITON_STAGE3_AVAILABLE, stage234_scale_fused_rz_triton
-
-        if not TRITON_STAGE3_AVAILABLE:
-            raise RuntimeError("Triton stage3 is unavailable in current environment.")
-
-        assert K % 16 == 0, "K must be multiple of 16 (group size)"
-        assert (K // 16) % 4 == 0, "G must be multiple of 4 (mma.k64 blocks)"
-
-        G = K // 16
-        profile = _init_profile_dict(return_profile)
-
-        t0 = _profile_stage_start(profile)
-        s_b = pseudo_quant.swizzled_to_linear_128_4(scale_b, N, G).to(torch.float32)
-        _profile_stage_end(profile, "preprocess_b_ms", t0)
-
-        t0 = _profile_stage_start(profile)
-        s_a_all = pseudo_quant.swizzled_to_linear_128_4(scale_a, M, G).to(torch.float32)
-        val_a_fp16_all = NVFP4Utils.unpack_nvfp4_to_fp16(a_fp4, (M, K))
-        val_b_fp16 = NVFP4Utils.unpack_nvfp4_to_fp16(b_fp4, (N, K))
-        _profile_stage_end(profile, "preprocess_a_ms", t0)
-
-        summed_result = torch.empty((M, N), device=val_a_fp16_all.device, dtype=torch.float32)
-
-        for m_start in range(0, M, m_chunk_size):
-            m_end = min(m_start + m_chunk_size, M)
-
-            val_a_chunk = val_a_fp16_all[m_start:m_end, :]
-            s_a_chunk = s_a_all[m_start:m_end, :]
-
-            t0 = _profile_stage_start(profile)
-            ps1_chunk = MMAEngine.stage1_inner_mma_fp16(val_a_chunk, val_b_fp16, impl=stage1_impl)
-            _profile_stage_end(profile, "stage1_ms", t0)
-
-            t0 = _profile_stage_start(profile)
-            summed_chunk = stage234_scale_fused_rz_triton(
-                ps1=ps1_chunk,
-                s_a=s_a_chunk,
-                s_b=s_b,
-                w_stage3=W_stage3,
-                w_stage4=W_stage4,
-                block_size=triton_block_size,
-            )
-            _profile_stage_end(profile, "stage3_ms", t0)
-
-            summed_result[m_start:m_end, :] = summed_chunk
-
-        t0 = _profile_stage_start(profile)
-        alpha_val = alpha_tensor.item()
-        final = (summed_result * alpha_val).to(torch.float16)
-        _profile_stage_end(profile, "stage5_ms", t0)
-
-        if return_profile:
-            profile["total_profiled_ms"] = sum(profile.values())
-            return final, profile
-        return final
+                chunks.append(HardwareCore.inter_block_accumulate_sequential(
+                    summed_groups=summed, W_stage4=W_stage4, stage4_rounding=stage4_rounding))
+            del ps1, scaled, v_list, summed
+        return (torch.cat(chunks, dim=0) * alpha_tensor.item()).to(torch.float16)
 
     @staticmethod
     def emulation_scaled_fp4_mm_fusednode(
@@ -630,8 +206,7 @@ class MMAEngine:
         Probed-template NVFP4 GEMM (see emulation/triton_fusednode.py). Stage 1 on fp16 tensor cores with fp32
         output (exact group sums) plus a nonzero-product count GEMM; then per k64 instruction one fused node
         (4 scale-anchored group terms + early C, RZ to 2^(emax-F), RZ to fp32); then fp16(alpha * acc).
-        Unlike emulation_scaled_fp4_mm_triton_stage234_fused, this matches hardware under large inter-group
-        dynamic range with cancellation. Not the default implementation.
+        Same numerics as ETON-Fused (staged: the group sums go through memory); used as its test oracle.
         """
         from .utils import NVFP4Utils
         from .triton_fusednode import stage234_fusednode_rz_triton
@@ -664,7 +239,7 @@ class MMAEngine:
         """
         ETON-Fused: the probed-template NVFP4 GEMM of emulation_scaled_fp4_mm_fusednode in ONE Triton kernel
         (tensor-core group sums + in-register fused node; see emulation/triton_eton_fused.py). template: a
-        FusedTemplate, a probe json path, or None (sm_120a NVFP4). Not the default implementation.
+        FusedTemplate, a probe json path, or None (sm_120a NVFP4). The default implementation.
         """
         from .triton_eton_fused import FusedTemplate, NVFP4_SM120, eton_fused_mm
 
@@ -672,37 +247,3 @@ class MMAEngine:
             template if isinstance(template, FusedTemplate) else FusedTemplate.from_probe(template))
         assert tmpl.scale_fmt == "ue4m3" and K % 64 == 0
         return eton_fused_mm(a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K, tmpl, out_dtype, b_prepared)
-
-    @staticmethod
-    def emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
-        a_fp4, b_fp4, scale_a, scale_b, alpha_tensor, M, N, K,
-        W_stage3=25, W_stage4=25,
-        stage3_rounding=RoundStrategy.RZ,
-        stage4_rounding=RoundStrategy.RZ,
-        m_chunk_size=128,
-        triton_block_size=256,
-        return_profile=False,
-    ):
-        """
-        Experimental Stage2+3+4 fused path with batched-matmul Stage-1.
-        """
-        return MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused(
-            a_fp4=a_fp4,
-            b_fp4=b_fp4,
-            scale_a=scale_a,
-            scale_b=scale_b,
-            alpha_tensor=alpha_tensor,
-            M=M,
-            N=N,
-            K=K,
-            W_stage3=W_stage3,
-            W_stage4=W_stage4,
-            stage3_rounding=stage3_rounding,
-            stage4_rounding=stage4_rounding,
-            m_chunk_size=m_chunk_size,
-            stage1_impl="bmm",
-            triton_block_size=triton_block_size,
-            return_profile=return_profile,
-        )
-
-

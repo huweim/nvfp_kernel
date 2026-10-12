@@ -4,35 +4,19 @@ import torch
 
 
 def _configured_emulation_impl() -> str:
-    impl = os.getenv("NVFP_EMULATION_IMPL", "beam_eton_fused").strip().lower()
-    valid = {
-        "baseline",
-        "beam_naive_triton",
-        "beam_234fusion",
-        "beam_234fusion_bmm",
-        "beam_fusednode",
-        "beam_eton_fused",
-        "beam_base",
-        "mmasim_v2",
-    }
-    if impl not in valid:
-        valid_csv = ", ".join(sorted(valid))
-        raise ValueError(
-            f"Invalid NVFP_EMULATION_IMPL={impl!r}; expected one of: {valid_csv}"
-        )
+    from emulation.registry import DEFAULT_IMPL, IMPLS
+    impl = os.getenv("NVFP_EMULATION_IMPL", DEFAULT_IMPL).strip().lower()
+    if impl not in IMPLS:
+        raise ValueError(f"Invalid NVFP_EMULATION_IMPL={impl!r}; expected one of: {', '.join(sorted(IMPLS))}")
     return impl
 
 
-def _mmasim(a, b, sa, sb, al, m, n, k):
-    from emulation.mmasim_backend import mmasim_scaled_fp4_mm
-    return mmasim_scaled_fp4_mm(a, b, sa, sb, al, m, n, k)
-
-
-def _eton_fused_template(w3: int, w4: int):
-    from emulation.triton_eton_fused import NVFP4_SM120, FusedTemplate
+def _configured_accum_bits() -> int:
+    # NVFP_EMULATION_W3 / _W4 (legacy names, both = the accumulator width) default to the probed 36 bits
+    w3, w4 = int(os.getenv("NVFP_EMULATION_W3", "36")), int(os.getenv("NVFP_EMULATION_W4", "36"))
     if w3 != w4:
-        raise ValueError("beam_eton_fused models one fused node: needs W3 == W4")
-    return NVFP4_SM120 if w3 - 1 == NVFP4_SM120.F else FusedTemplate(F=w3 - 1)
+        raise ValueError("the probed template has one accumulator width: NVFP_EMULATION_W3 must equal NVFP_EMULATION_W4")
+    return w3
 
 
 def scaled_fp4_quant(
@@ -78,75 +62,10 @@ def scaled_fp4_quant(
     return output, output_scale
 
 
-def cutlass_scaled_fp4_mm(
-    a: torch.Tensor,
-    b: torch.Tensor,
-    block_scale_a: torch.Tensor,
-    block_scale_b: torch.Tensor,
-    alpha: torch.Tensor,
-    out_dtype: torch.dtype,
-) -> torch.Tensor:
-    from emulation.core import MMAEngine
-
-    assert a.is_cuda, "a must be a CUDA tensor"
-    assert b.is_cuda, "b must be a CUDA tensor"
-    assert block_scale_a.is_cuda, "block_scale_a must be a CUDA tensor"
-    assert block_scale_b.is_cuda, "block_scale_b must be a CUDA tensor"
-    assert alpha.is_cuda, "alpha must be a CUDA tensor"
-    assert a.ndim == 2 and b.ndim == 2
-    assert a.dtype in (torch.uint8,), f"a.dtype needs to be uint8 but got {a.dtype}"
-    assert b.dtype in (torch.uint8,), f"b.dtype needs to be uint8 but got {b.dtype}"
-    assert block_scale_a.dtype in (
-        torch.float8_e4m3fn,
-    ), f"block_scale_a.dtype needs to be float8_e4m3fn but got {block_scale_a.dtype}"
-    assert block_scale_b.dtype in (
-        torch.float8_e4m3fn,
-    ), f"block_scale_b.dtype needs to be float8_e4m3fn but got {block_scale_b.dtype}"
-    assert alpha.dtype == torch.float, f"alpha.dtype needs to be fp32 but got {alpha.dtype}"
-    assert out_dtype in (
-        torch.float16,
-        torch.bfloat16,
-    ), f"out_dtype needs to be fp16 or bf16 but got {out_dtype}"
-
-    m, k_packed = a.shape
-    n = b.shape[0]
-    k = k_packed * 2
-    _DISPATCH_TABLE = {
-        "baseline": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm(
-            a, b, sa, sb, al, m, n, k, W_stage3=w3, W_stage4=w4
-        ),
-        "beam_naive_triton": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_triton(
-            a, b, sa, sb, al, m, n, k, W_stage3=w3, W_stage4=w4, triton_use_stage3=True, triton_fuse_stage34=True
-        ),
-        "beam_234fusion": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused(
-            a, b, sa, sb, al, m, n, k, W_stage3=w3, W_stage4=w4
-        ),
-        "beam_234fusion_bmm": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_triton_stage234_fused_bmm(
-            a, b, sa, sb, al, m, n, k, W_stage3=w3, W_stage4=w4
-        ),
-        # opt-in ETON-Base as in the paper's Table IV "B." (gemm_profile beam_base): staged reference, stage 1 on
-        # CUDA cores; m_chunk 128 to stay clear of OOM next to vLLM's KV cache
-        "beam_base": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm(
-            a, b, sa, sb, al, m, n, k, W_stage3=w3, W_stage4=w4, m_chunk_size=128, stage1_impl="cuda_core"
-        ),
-        # opt-in probed-template fused node (F = W - 1); not the default
-        "beam_fusednode": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_fusednode(
-            a, b, sa, sb, al, m, n, k, F=w3 - 1
-        ),
-        # opt-in ETON-Fused: same numerics as beam_fusednode in one Triton kernel (emulation/triton_eton_fused.py)
-        "beam_eton_fused": lambda a, b, sa, sb, al, m, n, k, w3, w4: MMAEngine.emulation_scaled_fp4_mm_eton_fused(
-            a, b, sa, sb, al, m, n, k, template=_eton_fused_template(w3, w4)
-        ),
-        # opt-in MMA-Sim v2 reference model as the GEMM (rebuttal E2E cost comparison; needs `pip install mmasim`)
-        "mmasim_v2": lambda a, b, sa, sb, al, m, n, k, w3, w4: _mmasim(a, b, sa, sb, al, m, n, k),
-    }
-
-    impl = _configured_emulation_impl()
-    fn = _DISPATCH_TABLE[impl]
-    from emulation import gemm_hist
-    gemm_hist.record(m, n, k)
-    # Use the probed RTX 5090 template (W3=W4=36, RZ), the same preset as EmulationKernel.for_rtx_5090.
-    # Without this the MMAEngine signature defaults (W=25) would silently apply on this env-driven path.
-    w3, w4 = int(os.getenv("NVFP_EMULATION_W3", "36")), int(os.getenv("NVFP_EMULATION_W4", "36"))
-    out = fn(a, b, block_scale_a, block_scale_b, alpha, m, n, k, w3, w4)
+def cutlass_scaled_fp4_mm(a, b, block_scale_a, block_scale_b, alpha, out_dtype):
+    """Emulated NVFP4 GEMM with the ops.cutlass_scaled_fp4_mm signature; impl from NVFP_EMULATION_IMPL."""
+    from emulation import registry
+    m, n, k = a.shape[0], b.shape[0], a.shape[1] * 2
+    out = registry.run(_configured_emulation_impl(), a, b, block_scale_a, block_scale_b, alpha, m, n, k,
+                       accum_bits=_configured_accum_bits(), out_dtype=out_dtype)
     return out.to(out_dtype)
