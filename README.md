@@ -6,11 +6,12 @@
   (H100, A100, …). It takes the same arguments and operand layouts (packed e2m1, 128x4-swizzled ue4m3 scales, fp32
   alpha).
 
-## Build
+## Build (into an existing venv with torch 2.8; see the top-level README)
 ```bash
-NVFP_BUILD_PROFILE=real           python setup.py install   # RTX 5090: CUTLASS kernels + emulation
-NVFP_BUILD_PROFILE=emulation_only python setup.py install   # H100 / A100: quantization helpers + emulation
+NVFP_BUILD_PROFILE=real           uv pip install --no-build-isolation -e .   # RTX 5090: CUTLASS kernels + emulation
+NVFP_BUILD_PROFILE=emulation_only uv pip install --no-build-isolation -e .   # H100 / A100: quantization helpers + emulation
 ```
+Editable: `nvfp` / `emulation` are imported from this directory and `scaled_fp4_ops*.so` is built here (git-ignored).
 
 ## Implementations (`emulation/registry.py`, the single table)
 | name | what | use |
